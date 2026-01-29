@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PipJournal - The professional trading journal to track, analyze, and improve your trading performance. Free forever.">
+  <meta name="keywords" content="trading journal, forex journal, stock trading, trade tracker, trading analytics">
+  <title>PipJournal | Professional Trading Journal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg-dark: #0a0a0f;
+      --bg-card: #12121a;
+      --bg-elevated: #1a1a24;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --text-muted: #6a6a7a;
+      --accent-green: #00d4a1;
+      --accent-green-dim: rgba(0, 212, 161, 0.15);
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --accent-red: #ef4444;
+      --border: #2a2a3a;
+      --gradient-green: linear-gradient(135deg, #00d4a1 0%, #00b890 100%);
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    
+    /* Navbar */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 10, 15, 0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--gradient-green);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: #000;
+    }
+    
+    .logo-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    
+    .logo-text span {
+      color: var(--accent-green);
+    }
+    
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      border: none;
+      display: inline-block;
+    }
+    
+    .btn-primary {
+      background: var(--gradient-green);
+      color: #000;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0, 212, 161, 0.3);
+    }
+    
+    .btn-secondary {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    
+    .btn-secondary:hover {
+      border-color: var(--accent-green);
+    }
+    
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 40px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .hero-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(ellipse at 20% 20%, rgba(0, 212, 161, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    
+    .hero-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+    
+    .hero-content {
+      max-width: 1200px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--accent-green-dim);
+      border: 1px solid rgba(0, 212, 161, 0.3);
+      border-radius: 50px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent-green);
+      margin-bottom: 24px;
+    }
+    
+    .hero-title {
+      font-size: clamp(42px, 7vw, 72px);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      letter-spacing: -2px;
+    }
+    
+    .hero-title span {
+      background: var(--gradient-green);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .hero-subtitle {
+      font-size: clamp(18px, 2.5vw, 22px);
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+    
+    .hero-cta {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 60px;
+    }
+    
+    .hero-cta .btn {
+      padding: 16px 32px;
+      font-size: 16px;
+    }
+    
+    .hero-stats {
+      display: flex;
+      gap: 48px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .hero-stat {
+      text-align: center;
+    }
+    
+    .hero-stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .hero-stat-label {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    
+    /* Features Section */
+    .features {
+      padding: 100px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    
+    .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-green);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+    }
+    
+    .section-title {
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+    
+    .section-subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+    
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+      border-color: var(--accent-green);
+      transform: translateY(-4px);
+    }
+    
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-green-dim);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    
+    .feature-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    
+    .feature-desc {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    
+    /* Screenshot Section */
+    .screenshot-section {
+      padding: 80px 40px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .screenshot-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: var(--bg-elevated);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+    }
+    
+    .screenshot-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 20px;
+      background: var(--bg-dark);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .screenshot-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    
+    .screenshot-dot.red { background: #ff5f56; }
+    .screenshot-dot.yellow { background: #ffbd2e; }
+    .screenshot-dot.green { background: #27ca40; }
+    
+    .screenshot-img {
+      width: 100%;
+      display: block;
+    }
+    
+    /* Analytics Preview */
+    .analytics-preview {
+      padding: 100px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+    
+    .analytics-content h2 {
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 700;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+    
+    .analytics-content p {
+      font-size: 17px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+    
+    .analytics-list {
+      list-style: none;
+    }
+    
+    .analytics-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      font-size: 16px;
+      color: var(--text-secondary);
+    }
+    
+    .analytics-list li::before {
+      content: "✓";
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: var(--accent-green-dim);
+      color: var(--accent-green);
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    
+    .analytics-visual {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    
+    .stat-card.highlight {
+      border-color: var(--accent-green);
+      background: linear-gradient(135deg, rgba(0, 212, 161, 0.1) 0%, transparent 100%);
+    }
+    
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .stat-value.green { color: var(--accent-green); }
+    .stat-value.red { color: var(--accent-red); }
+    .stat-value.blue { color: var(--accent-blue); }
+    
+    /* Pricing Section */
+    .pricing {
+      padding: 100px 40px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+    }
+    
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .pricing-card {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .pricing-card.featured {
+      border-color: var(--accent-green);
+      background: linear-gradient(180deg, rgba(0, 212, 161, 0.05) 0%, var(--bg-dark) 100%);
+    }
+    
+    .pricing-card.featured::before {
+      content: "MOST POPULAR";
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gradient-green);
+      color: #000;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 20px;
+    }
+    
+    .pricing-name {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .pricing-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+    
+    .pricing-price {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .pricing-price span {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    
+    .pricing-features {
+      list-style: none;
+      margin: 32px 0;
+      flex-grow: 1;
+    }
+    
+    .pricing-features li {
+      padding: 10px 0;
+      font-size: 15px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .pricing-features li::before {
+      content: "✓";
+      color: var(--accent-green);
+      font-weight: 700;
+    }
+    
+    .pricing-card .btn {
+      width: 100%;
+      text-align: center;
+    }
+    
+    /* CTA Section */
+    .cta {
+      padding: 100px 40px;
+      text-align: center;
+    }
+    
+    .cta-box {
+      max-width: 800px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, rgba(0, 212, 161, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 60px;
+    }
+    
+    .cta h2 {
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    
+    .cta p {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+    
+    /* Footer */
+    .footer {
+      padding: 60px 40px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+    
+    .footer-links {
+      display: flex;
+      gap: 32px;
+    }
+    
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    
+    .footer-links a:hover {
+      color: var(--text-primary);
+    }
+    
+    .footer-copy {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    
+    /* Responsive */
+    @media (max-width: 900px) {
+      .analytics-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+      
+      .nav-links a:not(.btn) {
+        display: none;
+      }
+      
+      .navbar {
+        padding: 16px 24px;
+      }
+      
+      .hero, .features, .analytics-preview, .pricing, .cta {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+    }
+    
+    @media (max-width: 600px) {
+      .hero-stats {
+        gap: 32px;
+      }
+      
+      .analytics-visual {
+        grid-template-columns: 1fr;
+      }
+      
+      .footer-content {
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .footer-links {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      
+      .cta-box {
+        padding: 40px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="#" class="logo">
+      <div class="logo-icon">PJ</div>
+      <div class="logo-text">Pip<span>Journal</span></div>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#analytics">Analytics</a>
+      <a href="#pricing">Pricing</a>
+      <a href="app.html" class="btn btn-primary">Open App →</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span>✨</span>
+        <span>Free forever • No credit card required</span>
+      </div>
+      <h1 class="hero-title">
+        Track Your Trades.<br>
+        <span>Find Your Edge.</span>
+      </h1>
+      <p class="hero-subtitle">
+        The professional trading journal that helps you analyze your performance, identify patterns, and become a consistently profitable trader.
+      </p>
+      <div class="hero-cta">
+        <a href="app.html" class="btn btn-primary">Start Journaling Free →</a>
+        <a href="#features" class="btn btn-secondary">See Features</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-value">100%</div>
+          <div class="hero-stat-label">Free to use</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value">50+</div>
+          <div class="hero-stat-label">Analytics metrics</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value">0</div>
+          <div class="hero-stat-label">Data leaves your device</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <div class="section-header">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Everything you need to improve</h2>
+      <p class="section-subtitle">Powerful tools designed by traders, for traders. No fluff, just what works.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3 class="feature-title">Equity Curve</h3>
+        <p class="feature-desc">Visualize your account growth over time with an interactive chart. See every trade's impact on your balance.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📉</div>
+        <h3 class="feature-title">Drawdown Tracking</h3>
+        <p class="feature-desc">Monitor your drawdowns in real-time. Know your max drawdown, current drawdown, and recovery progress.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⏰</div>
+        <h3 class="feature-title">Time Analysis</h3>
+        <p class="feature-desc">Discover your best and worst trading hours. Find out when you're most profitable and when to avoid trading.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏷️</div>
+        <h3 class="feature-title">Tag Performance</h3>
+        <p class="feature-desc">Tag trades with "FOMO", "A+ Setup", "Revenge" and see which behaviors make or lose you money.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3 class="feature-title">Strategy Playbook</h3>
+        <p class="feature-desc">Document your strategies with entry rules. Get checklist validation before each trade.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚠️</div>
+        <h3 class="feature-title">Risk Management</h3>
+        <p class="feature-desc">Track risk compliance, set daily trade limits, and get warnings when you're overtrading.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📓</div>
+        <h3 class="feature-title">Daily Journal</h3>
+        <p class="feature-desc">Record pre-market thoughts, market conditions, and end-of-day reflections. Track your mood and mindset.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📅</div>
+        <h3 class="feature-title">Calendar View</h3>
+        <p class="feature-desc">See your P/L at a glance with a color-coded monthly calendar. Spot patterns in your trading days.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧮</div>
+        <h3 class="feature-title">Risk Calculator</h3>
+        <p class="feature-desc">Calculate position sizes for spot and margin trading. Never risk more than you planned.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screenshot -->
+  <section class="screenshot-section">
+    <div class="screenshot-container">
+      <div class="screenshot-header">
+        <div class="screenshot-dot red"></div>
+        <div class="screenshot-dot yellow"></div>
+        <div class="screenshot-dot green"></div>
+      </div>
+      <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+        <p style="font-size: 48px; margin-bottom: 16px;">📊</p>
+        <p style="font-size: 18px;">Beautiful, intuitive dashboard</p>
+        <p style="font-size: 14px; margin-top: 8px;">Dark & Light themes available</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Analytics Preview -->
+  <section class="analytics-preview" id="analytics">
+    <div class="analytics-grid">
+      <div class="analytics-content">
+        <h2>Analytics that actually help you improve</h2>
+        <p>Stop guessing what's working. PipJournal analyzes your trades across dozens of dimensions to reveal exactly what's making and losing you money.</p>
+        <ul class="analytics-list">
+          <li>Win rate by time of day, day of week, and strategy</li>
+          <li>Tag performance to identify costly behaviors</li>
+          <li>Risk compliance tracking with violation alerts</li>
+          <li>Drawdown analysis with recovery metrics</li>
+          <li>Streak tracking for wins and losses</li>
+        </ul>
+      </div>
+      <div class="analytics-visual">
+        <div class="stat-card highlight">
+          <div class="stat-label">Win Rate</div>
+          <div class="stat-value green">67.4%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Profit Factor</div>
+          <div class="stat-value blue">2.31</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Max Drawdown</div>
+          <div class="stat-value red">-12.5%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Best Time</div>
+          <div class="stat-value">9:30 AM</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="pricing" id="pricing">
+    <div class="section-header">
+      <div class="section-label">Pricing</div>
+      <h2 class="section-title">Simple, transparent pricing</h2>
+      <p class="section-subtitle">Start for free. Upgrade when you need more.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-name">Free</div>
+        <div class="pricing-desc">Perfect for getting started</div>
+        <div class="pricing-price">$0<span>/month</span></div>
+        <ul class="pricing-features">
+          <li>10 trades per month</li>
+          <li>Full analytics</li>
+          <li>Daily journal</li>
+          <li>Risk calculator</li>
+          <li>Light theme</li>
+          <li>Local storage</li>
+        </ul>
+        <a href="app.html" class="btn btn-secondary">Get Started</a>
+      </div>
+      <div class="pricing-card featured">
+        <div class="pricing-name">Premium</div>
+        <div class="pricing-desc">For serious traders</div>
+        <div class="pricing-price">$9<span>/month</span></div>
+        <ul class="pricing-features">
+          <li>Unlimited trades</li>
+          <li>Full analytics</li>
+          <li>Daily journal</li>
+          <li>Risk calculator</li>
+          <li>Dark theme</li>
+          <li>Cloud sync (coming soon)</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="app.html" class="btn btn-primary">Start Free Trial</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <div class="cta-box">
+      <h2>Ready to find your edge?</h2>
+      <p>Join traders who are using data to improve their performance. Start tracking today.</p>
+      <a href="app.html" class="btn btn-primary">Open PipJournal →</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <a href="#" class="logo">
+        <div class="logo-icon">PJ</div>
+        <div class="logo-text">Pip<span>Journal</span></div>
+      </a>
+      <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="app.html">Open App</a>
+        <a href="https://github.com" target="_blank">GitHub</a>
+      </div>
+      <div class="footer-copy">© 2025 PipJournal. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <script>
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
