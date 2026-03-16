@@ -540,6 +540,31 @@
             <div class="stat-card neutral" id="pfCard"><div class="stat-label">Profit Factor</div><div class="stat-value" id="profitFactor">-</div><div class="stat-change neutral" id="pfChange">Need trades</div></div>
             <div class="stat-card neutral" id="avgRCard"><div class="stat-label">Avg R-Multiple</div><div class="stat-value" id="avgR">-</div><div class="stat-change neutral" id="avgRChange">Need trades</div></div>
           </div>
+
+          <div class="card" style="margin-bottom:24px">
+            <div class="card-header"><h2 class="card-title">🧠 Discipline</h2></div>
+            <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);padding:24px;padding-bottom:0">
+              <div class="stat-card neutral" id="disciplineScoreCard" style="text-align:center">
+                <div class="stat-label">Discipline Score</div>
+                <div class="stat-value" id="disciplineScoreValue">-</div>
+                <div class="stat-change neutral" id="disciplineScoreInfo">Need more trades</div>
+              </div>
+              <div class="stat-card neutral" style="text-align:center">
+                <div class="stat-label">Followed Rules</div>
+                <div class="stat-value" id="disciplineFollowRate">-</div>
+                <div class="stat-change neutral" id="disciplineFollowInfo">No checklist data yet</div>
+              </div>
+              <div class="stat-card neutral" style="text-align:center">
+                <div class="stat-label">Most Common Mistake</div>
+                <div class="stat-value" id="disciplineTopMistake">-</div>
+                <div class="stat-change neutral" id="disciplineTopMistakeInfo">No mistake tags yet</div>
+              </div>
+            </div>
+            <div style="padding:24px">
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.8px">Weekly Discipline Trend</div>
+              <div id="disciplineTrend" style="display:flex;align-items:flex-end;gap:10px;min-height:120px"></div>
+            </div>
+          </div>
           <div class="content-grid">
             <div class="card">
               <div class="card-header"><h2 class="card-title">Recent Trades</h2><div class="card-actions"><button class="filter-btn active" onclick="setFilter('all', this)">All</button><button class="filter-btn" onclick="setFilter('winners', this)">Winners</button><button class="filter-btn" onclick="setFilter('losers', this)">Losers</button></div></div>
@@ -1856,6 +1881,8 @@ function toTradeCloudRow(trade) {
     notes: trade.notes || null,
     rating: trade.rating || 0,
     tags: trade.tags || [],
+    followed_rules: typeof trade.followedRules === 'boolean' ? trade.followedRules : (typeof trade.followed_rules === 'boolean' ? trade.followed_rules : null),
+    mistake_tag: trade.mistakeTag || trade.mistake_tag || null,
     risk_amount: trade.riskAmount || null,
     fees: trade.fees || 0,
     screenshot: trade.screenshot || null
@@ -1904,6 +1931,8 @@ function mapCloudTrade(t) {
     notes: t.notes,
     rating: t.rating,
     tags: t.tags || [],
+    followedRules: typeof t.followed_rules === 'boolean' ? t.followed_rules : null,
+    mistakeTag: t.mistake_tag || null,
     riskAmount: t.risk_amount,
     fees: t.fees,
     screenshot: t.screenshot
@@ -2356,6 +2385,171 @@ function winRatePercent(winsCount, totalCount) {
   return totalCount > 0 ? (winsCount / totalCount) * 100 : 0;
 }
 
+function getTradeFollowedRulesValue(trade) {
+  if (typeof trade.followed_rules === 'boolean') return trade.followed_rules;
+  if (typeof trade.followedRules === 'boolean') return trade.followedRules;
+  return null;
+}
+
+function getTradeMistakeTagValue(trade) {
+  if (trade.mistake_tag) return String(trade.mistake_tag);
+  if (trade.mistakeTag) return String(trade.mistakeTag);
+  if (trade.tags && trade.tags.length > 0) {
+    var taggedMistake = trade.tags.find(function(tag) { return String(tag).toLowerCase().indexOf('mistake:') === 0; });
+    if (taggedMistake) return taggedMistake.replace(/^mistake:/i, '').trim() || 'Unspecified';
+  }
+  return null;
+}
+
+function countRiskViolations(list) {
+  var maxRiskPct = settings.defaultRisk || 2;
+  var balance = settings.startingBalance || 10000;
+  var violations = 0;
+  for (var i = 0; i < list.length; i++) {
+    var t = list[i];
+    if (t.riskAmount && t.riskAmount > 0 && balance > 0) {
+      var riskPct = (t.riskAmount / balance) * 100;
+      if (riskPct > maxRiskPct) violations++;
+    }
+    balance += t.pnl;
+  }
+  return violations;
+}
+
+function calculateDisciplineScoreMetrics(list) {
+  var totalTrades = list.length;
+  if (totalTrades === 0) {
+    return { score: null, followRate: null, mistakeFreq: 0, riskViolationFreq: 0, topMistake: null, topMistakeCount: 0, weekly: [] };
+  }
+
+  var followedCount = 0;
+  var followedDataCount = 0;
+  var mistakesCount = 0;
+  var mistakeTypes = {};
+
+  list.forEach(function(t) {
+    var followed = getTradeFollowedRulesValue(t);
+    if (followed !== null) {
+      followedDataCount++;
+      if (followed) followedCount++;
+    }
+    var mistake = getTradeMistakeTagValue(t);
+    if (mistake) {
+      mistakesCount++;
+      mistakeTypes[mistake] = (mistakeTypes[mistake] || 0) + 1;
+    }
+  });
+
+  var sortedByDate = list.slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
+  var riskViolations = countRiskViolations(sortedByDate);
+
+  var followRate = followedDataCount > 0 ? followedCount / followedDataCount : 0.5;
+  var mistakeFreq = mistakesCount / totalTrades;
+  var riskViolationFreq = riskViolations / totalTrades;
+  var rawScore = 100 * (0.5 * followRate + 0.25 * (1 - mistakeFreq) + 0.25 * (1 - riskViolationFreq));
+  var score = Math.max(0, Math.min(100, Math.round(rawScore)));
+
+  var topMistake = null;
+  var topMistakeCount = 0;
+  Object.keys(mistakeTypes).forEach(function(type) {
+    if (mistakeTypes[type] > topMistakeCount) {
+      topMistake = type;
+      topMistakeCount = mistakeTypes[type];
+    }
+  });
+
+  var weeklyBuckets = {};
+  sortedByDate.forEach(function(t) {
+    var d = new Date(t.date + 'T12:00:00');
+    var day = d.getDay();
+    var mondayOffset = day === 0 ? -6 : (1 - day);
+    d.setDate(d.getDate() + mondayOffset);
+    var key = d.toISOString().split('T')[0];
+    if (!weeklyBuckets[key]) weeklyBuckets[key] = [];
+    weeklyBuckets[key].push(t);
+  });
+
+  var weekly = Object.keys(weeklyBuckets).sort().slice(-8).map(function(weekKey) {
+    var m = calculateDisciplineScoreMetricsLite(weeklyBuckets[weekKey]);
+    return { week: weekKey, score: m.score, trades: weeklyBuckets[weekKey].length };
+  });
+
+  return {
+    score: score,
+    followRate: followedDataCount > 0 ? followRate : null,
+    mistakeFreq: mistakeFreq,
+    riskViolationFreq: riskViolationFreq,
+    topMistake: topMistake,
+    topMistakeCount: topMistakeCount,
+    weekly: weekly
+  };
+}
+
+function calculateDisciplineScoreMetricsLite(list) {
+  var total = list.length || 1;
+  var followedCount = 0;
+  var followedDataCount = 0;
+  var mistakesCount = 0;
+  list.forEach(function(t) {
+    var followed = getTradeFollowedRulesValue(t);
+    if (followed !== null) {
+      followedDataCount++;
+      if (followed) followedCount++;
+    }
+    if (getTradeMistakeTagValue(t)) mistakesCount++;
+  });
+  var followRate = followedDataCount > 0 ? followedCount / followedDataCount : 0.5;
+  var riskViolationFreq = countRiskViolations(list.slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); })) / total;
+  var mistakeFreq = mistakesCount / total;
+  var score = Math.max(0, Math.min(100, Math.round(100 * (0.5 * followRate + 0.25 * (1 - mistakeFreq) + 0.25 * (1 - riskViolationFreq)))));
+  return { score: score };
+}
+
+function renderDisciplineDashboard() {
+  var m = calculateDisciplineScoreMetrics(trades);
+  var scoreEl = document.getElementById('disciplineScoreValue');
+  var scoreInfoEl = document.getElementById('disciplineScoreInfo');
+  var scoreCard = document.getElementById('disciplineScoreCard');
+
+  if (m.score === null) {
+    scoreEl.textContent = '-';
+    scoreInfoEl.textContent = 'Need more trades';
+    scoreCard.className = 'stat-card neutral';
+    document.getElementById('disciplineFollowRate').textContent = '-';
+    document.getElementById('disciplineFollowInfo').textContent = 'No checklist data yet';
+    document.getElementById('disciplineTopMistake').textContent = '-';
+    document.getElementById('disciplineTopMistakeInfo').textContent = 'No mistake tags yet';
+    document.getElementById('disciplineTrend').innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Log trades to see weekly trend</div>';
+    return;
+  }
+
+  scoreEl.textContent = m.score + '/100';
+  scoreInfoEl.textContent = 'Mistakes: ' + Math.round(m.mistakeFreq * 100) + '% • Risk violations: ' + Math.round(m.riskViolationFreq * 100) + '%';
+  scoreCard.className = 'stat-card ' + (m.score >= 80 ? 'positive' : (m.score >= 60 ? 'neutral' : 'negative'));
+
+  document.getElementById('disciplineFollowRate').textContent = m.followRate === null ? '-' : Math.round(m.followRate * 100) + '%';
+  document.getElementById('disciplineFollowInfo').textContent = m.followRate === null ? 'No checklist data yet' : 'Trades marked as followed_rules';
+
+  document.getElementById('disciplineTopMistake').textContent = m.topMistake || '-';
+  document.getElementById('disciplineTopMistakeInfo').textContent = m.topMistake ? (m.topMistakeCount + ' trade' + (m.topMistakeCount === 1 ? '' : 's')) : 'No mistake tags yet';
+
+  var trendEl = document.getElementById('disciplineTrend');
+  if (!m.weekly.length) {
+    trendEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Not enough weekly data</div>';
+    return;
+  }
+  var html = '';
+  m.weekly.forEach(function(w) {
+    var h = Math.max(12, Math.round((w.score / 100) * 90));
+    html += '<div style="flex:1;min-width:56px;text-align:center">';
+    html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">' + w.score + '</div>';
+    html += '<div style="height:' + h + 'px;background:' + (w.score >= 80 ? 'var(--accent-green)' : (w.score >= 60 ? 'var(--accent-yellow)' : 'var(--accent-red)')) + ';border-radius:6px 6px 0 0;opacity:0.85"></div>';
+    html += '<div style="font-size:10px;color:var(--text-muted);margin-top:6px">' + w.week.slice(5) + '</div>';
+    html += '</div>';
+  });
+  trendEl.innerHTML = html;
+}
+
 function updateStats() {
   var grouped = splitTradesByResult(trades);
   var wins = grouped.wins;
@@ -2387,6 +2581,7 @@ function updateStats() {
   var rTrades = trades.filter(function(t){return t.rMultiple !== null;});
   var avgR = rTrades.length > 0 ? rTrades.reduce(function(s,t){return s+t.rMultiple;},0) / rTrades.length : null;
   document.getElementById('avgR').textContent = avgR !== null ? avgR.toFixed(2) + 'R' : '-';
+  renderDisciplineDashboard();
   updateChart();
   updateGoalProgress();
   updateTradeLimitWarning();
@@ -4843,6 +5038,7 @@ function updateTrade(tradeId) {
   var riskAmount = parseFloat(document.getElementById('riskAmount').value) || null;
   var strategy = document.getElementById('strategy').value;
   var notes = document.getElementById('notes').value;
+  var discipline = deriveDisciplineTradeFieldsFromForm(currentTradeTags);
   
   if (!symbol || !date || isNaN(pnl)) { alert('Please fill in Symbol, Date, and P/L'); return; }
   
@@ -4856,6 +5052,7 @@ function updateTrade(tradeId) {
   
   var index = trades.findIndex(function(t) { return t.id === tradeId; });
   if (index !== -1) {
+    var previousTrade = trades[index];
     trades[index] = {
       id: tradeId,
       symbol: symbol,
@@ -4873,7 +5070,9 @@ function updateTrade(tradeId) {
       notes: notes,
       image: tradeImageData || null,
       rating: currentTradeRating || null,
-      tags: currentTradeTags.slice() || []
+      tags: currentTradeTags.slice() || [],
+      followedRules: discipline.followedRules !== null ? discipline.followedRules : (typeof previousTrade.followedRules === 'boolean' ? previousTrade.followedRules : null),
+      mistakeTag: discipline.mistakeTag || previousTrade.mistakeTag || null
     };
   }
   
@@ -5093,6 +5292,18 @@ function getChecklistStatus() {
   checkboxes.forEach(function(cb) { if (cb.checked) checked++; });
   return { total: total, checked: checked };
 }
+
+function deriveDisciplineTradeFieldsFromForm(tags) {
+  var checklist = getChecklistStatus();
+  var followedRules = checklist.total > 0 ? checklist.checked === checklist.total : null;
+  var mistakeTag = null;
+  if (tags && tags.length > 0) {
+    var taggedMistake = tags.find(function(tag) { return String(tag).toLowerCase().indexOf('mistake:') === 0; });
+    if (taggedMistake) mistakeTag = taggedMistake.replace(/^mistake:/i, '').trim() || 'Unspecified';
+  }
+  return { followedRules: followedRules, mistakeTag: mistakeTag };
+}
+
 function closeModal() { 
   document.getElementById('tradeModal').classList.remove('active'); 
   document.getElementById('symbol').value = ''; 
@@ -5150,6 +5361,7 @@ function saveTrade() {
   var riskAmount = parseFloat(document.getElementById('riskAmount').value) || null;
   var strategy = document.getElementById('strategy').value;
   var notes = document.getElementById('notes').value;
+  var discipline = deriveDisciplineTradeFieldsFromForm(currentTradeTags);
   
   if (!symbol || !date || isNaN(pnl)) { alert('Please fill in Symbol, Date, and P/L'); return; }
   
@@ -5178,7 +5390,9 @@ function saveTrade() {
     notes: notes,
     image: tradeImageData || null,
     rating: currentTradeRating || null,
-    tags: currentTradeTags.slice() || []
+    tags: currentTradeTags.slice() || [],
+    followedRules: discipline.followedRules,
+    mistakeTag: discipline.mistakeTag
   });
   saveTradesToStorage();
   syncTradeToCloud(trades[0]);
