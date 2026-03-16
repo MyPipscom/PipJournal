@@ -616,6 +616,22 @@
               <div class="stat-card purple"><div class="stat-label">Expectancy</div><div class="stat-value" id="anExpectancy">$0.00</div><div class="stat-change neutral">Per trade</div></div>
             </div>
             <div class="card" style="margin-bottom:24px"><div class="card-header"><h2 class="card-title">Win & Loss Streaks</h2></div><div class="streak-display"><div class="streak-item wins"><div class="streak-value" id="anMaxWinStreak">0</div><div class="streak-label">Max Win Streak</div></div><div class="streak-item losses"><div class="streak-value" id="anMaxLossStreak">0</div><div class="streak-label">Max Loss Streak</div></div><div class="streak-item current"><div class="streak-value" id="anCurrentStreak">0</div><div class="streak-label" id="anCurrentStreakLabel">Current Streak</div></div></div></div>
+
+            <!-- Insights -->
+            <div class="card" style="margin-bottom:24px">
+              <div class="card-header"><h2 class="card-title">💡 Insights</h2></div>
+              <div class="stats-grid" style="padding:24px" id="insightsGrid">
+                <div class="stat-card neutral"><div class="stat-label">Best Setup</div><div class="stat-value" id="insBestSetup">-</div><div class="stat-change neutral" id="insBestSetupInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Worst Setup</div><div class="stat-value" id="insWorstSetup">-</div><div class="stat-change neutral" id="insWorstSetupInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Best Weekday</div><div class="stat-value" id="insBestWeekday">-</div><div class="stat-change neutral" id="insBestWeekdayInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Worst Weekday</div><div class="stat-value" id="insWorstWeekday">-</div><div class="stat-change neutral" id="insWorstWeekdayInfo">-</div></div>
+                <div class="stat-card positive"><div class="stat-label">Average Win</div><div class="stat-value" id="insAvgWin">+$0.00</div><div class="stat-change neutral" id="insAvgWinInfo">-</div></div>
+                <div class="stat-card negative"><div class="stat-label">Average Loss</div><div class="stat-value" id="insAvgLoss">-$0.00</div><div class="stat-change neutral" id="insAvgLossInfo">-</div></div>
+                <div class="stat-card positive"><div class="stat-label">Longest Win Streak</div><div class="stat-value" id="insLongestWinStreak">0</div><div class="stat-change neutral" id="insLongestWinStreakInfo">-</div></div>
+                <div class="stat-card negative"><div class="stat-label">Longest Loss Streak</div><div class="stat-value" id="insLongestLossStreak">0</div><div class="stat-change neutral" id="insLongestLossStreakInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Most Broken Rule</div><div class="stat-value" id="insMostBrokenRule">-</div><div class="stat-change neutral" id="insMostBrokenRuleInfo">-</div></div>
+              </div>
+            </div>
             
             <!-- Drawdown Tracker -->
             <div class="card" style="margin-bottom:24px">
@@ -1669,32 +1685,61 @@ var isOnlineMode = false;
 var isSyncing = false;
 var authMode = 'login'; // 'login' or 'signup'
 
+function getAuthModeCopy(mode) {
+  var isLogin = mode === 'login';
+  return {
+    submit: isLogin ? 'Sign In' : 'Create Account',
+    toggleText: isLogin ? "Don't have an account?" : 'Already have an account?',
+    toggleLink: isLogin ? 'Sign Up' : 'Sign In',
+    subtitle: isLogin ? 'Sign in to sync your trades across devices' : 'Create an account to sync your trades'
+  };
+}
+
+function setAuthModeUI(mode) {
+  var copy = getAuthModeCopy(mode);
+  document.getElementById('authSubmitBtn').textContent = copy.submit;
+  document.getElementById('authToggleText').textContent = copy.toggleText;
+  document.getElementById('authToggleLink').textContent = copy.toggleLink;
+  document.getElementById('authSubtitle').textContent = copy.subtitle;
+}
+
+function setAuthSubmitState(isDisabled, text) {
+  var btn = document.getElementById('authSubmitBtn');
+  btn.disabled = !!isDisabled;
+  if (text) btn.textContent = text;
+}
+
+function setAuthMessage(type, msg) {
+  var errorEl = document.getElementById('authError');
+  var successEl = document.getElementById('authSuccess');
+  if (type === 'error') {
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+    successEl.style.display = 'none';
+  } else if (type === 'success') {
+    successEl.textContent = msg;
+    successEl.style.display = 'block';
+    errorEl.style.display = 'none';
+  }
+}
+
 // ===== AUTH FUNCTIONS =====
 function toggleAuthMode(e) {
   if (e) e.preventDefault();
   authMode = authMode === 'login' ? 'signup' : 'login';
-  document.getElementById('authSubmitBtn').textContent = authMode === 'login' ? 'Sign In' : 'Create Account';
-  document.getElementById('authToggleText').textContent = authMode === 'login' ? "Don't have an account?" : 'Already have an account?';
-  document.getElementById('authToggleLink').textContent = authMode === 'login' ? 'Sign Up' : 'Sign In';
-  document.getElementById('authSubtitle').textContent = authMode === 'login' ? 'Sign in to sync your trades across devices' : 'Create an account to sync your trades';
+  setAuthModeUI(authMode);
   hideAuthError();
   hideAuthSuccess();
 }
 
 function showAuthError(msg) {
-  var el = document.getElementById('authError');
-  el.textContent = msg;
-  el.style.display = 'block';
-  document.getElementById('authSuccess').style.display = 'none';
+  setAuthMessage('error', msg);
 }
 
 function hideAuthError() { document.getElementById('authError').style.display = 'none'; }
 
 function showAuthSuccess(msg) {
-  var el = document.getElementById('authSuccess');
-  el.textContent = msg;
-  el.style.display = 'block';
-  document.getElementById('authError').style.display = 'none';
+  setAuthMessage('success', msg);
 }
 
 function hideAuthSuccess() { document.getElementById('authSuccess').style.display = 'none'; }
@@ -1706,9 +1751,7 @@ async function handleAuth() {
   if (!email || !password) { showAuthError('Please enter email and password'); return; }
   if (password.length < 6) { showAuthError('Password must be at least 6 characters'); return; }
   
-  var btn = document.getElementById('authSubmitBtn');
-  btn.disabled = true;
-  btn.textContent = authMode === 'login' ? 'Signing in...' : 'Creating account...';
+  setAuthSubmitState(true, authMode === 'login' ? 'Signing in...' : 'Creating account...');
   hideAuthError();
   
   try {
@@ -1720,8 +1763,7 @@ async function handleAuth() {
       if (result.error) throw result.error;
       if (result.data.user && !result.data.session) {
         showAuthSuccess('Check your email for a confirmation link!');
-        btn.disabled = false;
-        btn.textContent = 'Create Account';
+        setAuthSubmitState(false, 'Create Account');
         return;
       }
     } else {
@@ -1737,8 +1779,7 @@ async function handleAuth() {
     if (msg.includes('Invalid login')) msg = 'Invalid email or password';
     if (msg.includes('already registered')) msg = 'Email already registered. Try signing in.';
     showAuthError(msg);
-    btn.disabled = false;
-    btn.textContent = authMode === 'login' ? 'Sign In' : 'Create Account';
+    setAuthSubmitState(false, getAuthModeCopy(authMode).submit);
   }
 }
 
@@ -1795,6 +1836,80 @@ function updateSyncStatus(status) {
   else { text.textContent = 'Synced'; }
 }
 
+function canSyncCloud() {
+  return !!(supabase && currentUser && isOnlineMode);
+}
+
+function toTradeCloudRow(trade) {
+  return {
+    user_id: currentUser.id,
+    local_id: trade.id,
+    date: trade.date,
+    time: trade.time || null,
+    symbol: trade.symbol,
+    direction: trade.direction,
+    entry_price: trade.entry,
+    exit_price: trade.exit,
+    quantity: trade.quantity,
+    pnl: trade.pnl,
+    strategy: trade.strategy || null,
+    notes: trade.notes || null,
+    rating: trade.rating || 0,
+    tags: trade.tags || [],
+    risk_amount: trade.riskAmount || null,
+    fees: trade.fees || 0,
+    screenshot: trade.screenshot || null
+  };
+}
+
+function toJournalCloudRow(entry) {
+  return {
+    user_id: currentUser.id,
+    date: entry.date,
+    pre_market: entry.preMarket || '',
+    market_conditions: entry.marketConditions || '',
+    end_of_day: entry.endOfDay || '',
+    mood: entry.mood || '',
+    lessons_learned: entry.lessonsLearned || ''
+  };
+}
+
+function toPlaybookCloudRow(entry) {
+  return {
+    user_id: currentUser.id,
+    local_id: entry.id,
+    name: entry.name,
+    type: entry.type || '',
+    description: entry.description || '',
+    entry_rules: entry.entryRules || [],
+    stop_loss: entry.stopLoss || '',
+    take_profit: entry.takeProfit || '',
+    notes: entry.notes || ''
+  };
+}
+
+function mapCloudTrade(t) {
+  return {
+    id: t.local_id || t.id,
+    cloud_id: t.id,
+    date: t.date,
+    time: t.time,
+    symbol: t.symbol,
+    direction: t.direction,
+    entry: t.entry_price,
+    exit: t.exit_price,
+    quantity: t.quantity,
+    pnl: t.pnl,
+    strategy: t.strategy,
+    notes: t.notes,
+    rating: t.rating,
+    tags: t.tags || [],
+    riskAmount: t.risk_amount,
+    fees: t.fees,
+    screenshot: t.screenshot
+  };
+}
+
 async function handleLogout() {
   if (!confirm('Sign out? Your local data will be kept.')) return;
   try {
@@ -1818,17 +1933,7 @@ async function loadFromCloud() {
       .from('trades').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: true });
     if (tErr) throw tErr;
     if (cloudTrades && cloudTrades.length > 0) {
-      trades = cloudTrades.map(function(t) {
-        return {
-          id: t.local_id || t.id,
-          cloud_id: t.id,
-          date: t.date, time: t.time, symbol: t.symbol, direction: t.direction,
-          entry: t.entry_price, exit: t.exit_price, quantity: t.quantity,
-          pnl: t.pnl, strategy: t.strategy, notes: t.notes,
-          rating: t.rating, tags: t.tags || [], riskAmount: t.risk_amount,
-          fees: t.fees, screenshot: t.screenshot
-        };
-      });
+      trades = cloudTrades.map(mapCloudTrade);
     } else {
       // First login - push local trades to cloud
       if (trades.length > 0) { await pushAllTradesToCloud(); }
@@ -1884,17 +1989,10 @@ async function loadFromCloud() {
 }
 
 async function syncTradeToCloud(trade) {
-  if (!supabase || !currentUser || !isOnlineMode) return;
+  if (!canSyncCloud()) return;
   updateSyncStatus('syncing');
   try {
-    var row = {
-      user_id: currentUser.id, local_id: trade.id,
-      date: trade.date, time: trade.time || null, symbol: trade.symbol,
-      direction: trade.direction, entry_price: trade.entry, exit_price: trade.exit,
-      quantity: trade.quantity, pnl: trade.pnl, strategy: trade.strategy || null,
-      notes: trade.notes || null, rating: trade.rating || 0, tags: trade.tags || [],
-      risk_amount: trade.riskAmount || null, fees: trade.fees || 0, screenshot: trade.screenshot || null
-    };
+    var row = toTradeCloudRow(trade);
     
     if (trade.cloud_id) {
       await supabase.from('trades').update(row).eq('id', trade.cloud_id);
@@ -1907,21 +2005,13 @@ async function syncTradeToCloud(trade) {
 }
 
 async function deleteTradeFromCloud(trade) {
-  if (!supabase || !currentUser || !isOnlineMode || !trade.cloud_id) return;
+  if (!canSyncCloud() || !trade.cloud_id) return;
   try { await supabase.from('trades').delete().eq('id', trade.cloud_id); } catch(e) { console.error('Delete cloud trade error:', e); }
 }
 
 async function pushAllTradesToCloud() {
   if (!supabase || !currentUser) return;
-  var rows = trades.map(function(t) {
-    return {
-      user_id: currentUser.id, local_id: t.id, date: t.date, time: t.time || null,
-      symbol: t.symbol, direction: t.direction, entry_price: t.entry, exit_price: t.exit,
-      quantity: t.quantity, pnl: t.pnl, strategy: t.strategy || null, notes: t.notes || null,
-      rating: t.rating || 0, tags: t.tags || [], risk_amount: t.riskAmount || null,
-      fees: t.fees || 0, screenshot: t.screenshot || null
-    };
-  });
+  var rows = trades.map(toTradeCloudRow);
   if (rows.length === 0) return;
   try {
     var { data } = await supabase.from('trades').insert(rows).select();
@@ -1932,7 +2022,7 @@ async function pushAllTradesToCloud() {
 }
 
 async function saveSettingsToCloud() {
-  if (!supabase || !currentUser || !isOnlineMode) return;
+  if (!canSyncCloud()) return;
   try {
     await supabase.from('user_settings').upsert({
       user_id: currentUser.id, settings_json: JSON.stringify(settings), updated_at: new Date().toISOString()
@@ -1941,13 +2031,9 @@ async function saveSettingsToCloud() {
 }
 
 async function syncJournalEntryToCloud(entry) {
-  if (!supabase || !currentUser || !isOnlineMode) return;
+  if (!canSyncCloud()) return;
   try {
-    var row = {
-      user_id: currentUser.id, date: entry.date, pre_market: entry.preMarket || '',
-      market_conditions: entry.marketConditions || '', end_of_day: entry.endOfDay || '',
-      mood: entry.mood || '', lessons_learned: entry.lessonsLearned || ''
-    };
+    var row = toJournalCloudRow(entry);
     if (entry.cloud_id) {
       await supabase.from('journal_entries').update(row).eq('id', entry.cloud_id);
     } else {
@@ -1959,25 +2045,15 @@ async function syncJournalEntryToCloud(entry) {
 
 async function pushAllJournalToCloud() {
   if (!supabase || !currentUser) return;
-  var rows = journalEntries.map(function(j) {
-    return {
-      user_id: currentUser.id, date: j.date, pre_market: j.preMarket || '',
-      market_conditions: j.marketConditions || '', end_of_day: j.endOfDay || '',
-      mood: j.mood || '', lessons_learned: j.lessonsLearned || ''
-    };
-  });
+  var rows = journalEntries.map(toJournalCloudRow);
   if (rows.length === 0) return;
   try { await supabase.from('journal_entries').insert(rows); } catch(e) { console.error('Push journal error:', e); }
 }
 
 async function syncPlaybookToCloud(entry) {
-  if (!supabase || !currentUser || !isOnlineMode) return;
+  if (!canSyncCloud()) return;
   try {
-    var row = {
-      user_id: currentUser.id, local_id: entry.id, name: entry.name, type: entry.type || '',
-      description: entry.description || '', entry_rules: entry.entryRules || [],
-      stop_loss: entry.stopLoss || '', take_profit: entry.takeProfit || '', notes: entry.notes || ''
-    };
+    var row = toPlaybookCloudRow(entry);
     if (entry.cloud_id) {
       await supabase.from('playbook').update(row).eq('id', entry.cloud_id);
     } else {
@@ -1989,23 +2065,31 @@ async function syncPlaybookToCloud(entry) {
 
 async function pushAllPlaybookToCloud() {
   if (!supabase || !currentUser) return;
-  var rows = playbook.map(function(p) {
-    return {
-      user_id: currentUser.id, local_id: p.id, name: p.name, type: p.type || '',
-      description: p.description || '', entry_rules: p.entryRules || [],
-      stop_loss: p.stopLoss || '', take_profit: p.takeProfit || '', notes: p.notes || ''
-    };
-  });
+  var rows = playbook.map(toPlaybookCloudRow);
   if (rows.length === 0) return;
   try { await supabase.from('playbook').insert(rows); } catch(e) { console.error('Push playbook error:', e); }
 }
 
 async function deletePlaybookFromCloud(entry) {
-  if (!supabase || !currentUser || !isOnlineMode || !entry.cloud_id) return;
+  if (!canSyncCloud() || !entry.cloud_id) return;
   try { await supabase.from('playbook').delete().eq('id', entry.cloud_id); } catch(e) {}
 }
 
 // ===== LOCAL STORAGE HELPERS =====
+function writeStorageJSON(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function readStorageJSON(key) {
+  var stored = localStorage.getItem(key);
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch(e) {
+    return null;
+  }
+}
+
 function loadFromLocalStorage() {
   loadTradesFromStorage();
   loadPlaybookFromStorage();
@@ -2016,8 +2100,8 @@ function loadFromLocalStorage() {
 function saveLocalBackup() {
   saveTradesToStorage();
   saveSettingsToStorage();
-  localStorage.setItem('tradingJournalEntries', JSON.stringify(journalEntries));
-  localStorage.setItem('tradingJournalPlaybook', JSON.stringify(playbook));
+  writeStorageJSON('tradingJournalEntries', journalEntries);
+  writeStorageJSON('tradingJournalPlaybook', playbook);
 }
 
 function initApp() {
@@ -2253,10 +2337,31 @@ function nextPage() { currentPage++; renderFullTradeLog(); }
 
 function formatDate(d) { var date = new Date(d); var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear(); }
 
+function splitTradesByResult(list) {
+  return {
+    wins: list.filter(function(t) { return t.pnl > 0; }),
+    losses: list.filter(function(t) { return t.pnl < 0; })
+  };
+}
+
+function sumTradePnl(list) {
+  return list.reduce(function(sum, t) { return sum + t.pnl; }, 0);
+}
+
+function avgTradePnl(list) {
+  return list.length > 0 ? sumTradePnl(list) / list.length : 0;
+}
+
+function winRatePercent(winsCount, totalCount) {
+  return totalCount > 0 ? (winsCount / totalCount) * 100 : 0;
+}
+
 function updateStats() {
-  var totalPnl = 0, wins = [], losses = [];
-  for (var i = 0; i < trades.length; i++) { totalPnl += trades[i].pnl; if (trades[i].pnl > 0) wins.push(trades[i]); else if (trades[i].pnl < 0) losses.push(trades[i]); }
-  var winRate = trades.length > 0 ? (wins.length / trades.length) * 100 : 0;
+  var grouped = splitTradesByResult(trades);
+  var wins = grouped.wins;
+  var losses = grouped.losses;
+  var totalPnl = sumTradePnl(trades);
+  var winRate = winRatePercent(wins.length, trades.length);
   document.getElementById('totalPnl').textContent = (totalPnl >= 0 ? '+$' : '-$') + Math.abs(totalPnl).toFixed(2);
   document.getElementById('totalPnl').style.color = totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
   document.getElementById('pnlCard').className = 'stat-card ' + (trades.length === 0 ? 'neutral' : (totalPnl >= 0 ? 'positive' : 'negative'));
@@ -2267,16 +2372,16 @@ function updateStats() {
   document.getElementById('totalWins').textContent = wins.length;
   document.getElementById('totalLosses').textContent = losses.length;
   document.getElementById('winRateRing').style.strokeDashoffset = 377 - (winRate / 100) * 377;
-  var avgWin = wins.length > 0 ? wins.reduce(function(s,t){return s+t.pnl;},0) / wins.length : 0;
-  var avgLoss = losses.length > 0 ? Math.abs(losses.reduce(function(s,t){return s+t.pnl;},0) / losses.length) : 0;
+  var avgWin = avgTradePnl(wins);
+  var avgLoss = Math.abs(avgTradePnl(losses));
   document.getElementById('avgWin').textContent = '+$' + avgWin.toFixed(2);
   document.getElementById('avgLoss').textContent = '-$' + avgLoss.toFixed(2);
   document.getElementById('largestWin').textContent = wins.length > 0 ? '+$' + Math.max.apply(null, wins.map(function(t){return t.pnl;})).toFixed(2) : '$0.00';
   document.getElementById('largestLoss').textContent = losses.length > 0 ? '-$' + Math.abs(Math.min.apply(null, losses.map(function(t){return t.pnl;}))).toFixed(2) : '$0.00';
   document.getElementById('expectancy').textContent = trades.length > 0 ? '$' + (totalPnl / trades.length).toFixed(2) : '$0.00';
   document.getElementById('accountBalance').textContent = '$' + (STARTING_BALANCE + totalPnl).toLocaleString('en-US', {minimumFractionDigits:2});
-  var grossWin = wins.reduce(function(s,t){return s+t.pnl;},0);
-  var grossLoss = Math.abs(losses.reduce(function(s,t){return s+t.pnl;},0));
+  var grossWin = sumTradePnl(wins);
+  var grossLoss = Math.abs(sumTradePnl(losses));
   var pf = grossLoss > 0 ? grossWin / grossLoss : 0;
   document.getElementById('profitFactor').textContent = trades.length === 0 ? '-' : pf.toFixed(2);
   var rTrades = trades.filter(function(t){return t.rMultiple !== null;});
@@ -2569,6 +2674,107 @@ function hideChartTooltip() {
   document.getElementById('chartTooltip').style.opacity = '0';
 }
 
+function aggregateByKey(list, keyFn) {
+  var bucket = {};
+  list.forEach(function(item) {
+    var key = keyFn(item);
+    if (!bucket[key]) bucket[key] = { pnl: 0, trades: 0, wins: 0, losses: 0 };
+    bucket[key].pnl += item.pnl;
+    bucket[key].trades++;
+    if (item.pnl > 0) bucket[key].wins++;
+    if (item.pnl < 0) bucket[key].losses++;
+  });
+  return bucket;
+}
+
+function getBestAndWorstKeyByPnl(aggregate) {
+  var keys = Object.keys(aggregate);
+  if (keys.length === 0) return { best: null, worst: null };
+  keys.sort(function(a, b) { return aggregate[b].pnl - aggregate[a].pnl; });
+  return { best: keys[0], worst: keys[keys.length - 1] };
+}
+
+function calculateStreaks(sortedTrades) {
+  var maxWin = 0, maxLoss = 0, tempWin = 0, tempLoss = 0;
+  for (var i = 0; i < sortedTrades.length; i++) {
+    if (sortedTrades[i].pnl > 0) { tempWin++; tempLoss = 0; if (tempWin > maxWin) maxWin = tempWin; }
+    else if (sortedTrades[i].pnl < 0) { tempLoss++; tempWin = 0; if (tempLoss > maxLoss) maxLoss = tempLoss; }
+  }
+  return { maxWin: maxWin, maxLoss: maxLoss };
+}
+
+function normalizeRuleText(text) {
+  if (!text) return '';
+  return text.toLowerCase().replace(/[_-]/g, ' ').trim();
+}
+
+function detectMostBrokenRule(list) {
+  var ruleMap = {
+    'fomo': 'FOMO Entry',
+    'revenge': 'Revenge Trade',
+    'overtrade': 'Overtrading',
+    'overtrading': 'Overtrading',
+    'chase': 'Chasing Price',
+    'no stop': 'No Stop Loss',
+    'move stop': 'Moved Stop Loss',
+    'size too big': 'Oversized Position',
+    'oversize': 'Oversized Position',
+    'break rule': 'Rule Break'
+  };
+  var counts = {};
+  list.forEach(function(t) {
+    if (t.pnl >= 0) return;
+    var signals = [];
+    if (t.tags && t.tags.length) signals = signals.concat(t.tags);
+    if (t.notes) signals.push(t.notes);
+    signals.forEach(function(signal) {
+      var s = normalizeRuleText(signal);
+      Object.keys(ruleMap).forEach(function(key) {
+        if (s.indexOf(key) !== -1) {
+          var label = ruleMap[key];
+          counts[label] = (counts[label] || 0) + 1;
+        }
+      });
+    });
+  });
+  var keys = Object.keys(counts);
+  if (keys.length === 0) return { rule: '-', count: 0 };
+  keys.sort(function(a, b) { return counts[b] - counts[a]; });
+  return { rule: keys[0], count: counts[keys[0]] };
+}
+
+function setInsightCard(valueId, infoId, valueText, infoText) {
+  document.getElementById(valueId).textContent = valueText;
+  document.getElementById(infoId).textContent = infoText;
+}
+
+function formatSignedPnl(value) {
+  return (value >= 0 ? '+$' : '-$') + Math.abs(value).toFixed(2);
+}
+
+function renderInsights(tradesList, wins, losses, sortedTrades) {
+  var weekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var setupAgg = aggregateByKey(tradesList, function(t) { return (t.strategy && t.strategy.trim()) ? t.strategy : 'Untagged'; });
+  var weekdayAgg = aggregateByKey(tradesList, function(t) { return weekdays[new Date(t.date).getDay()]; });
+  var setupRank = getBestAndWorstKeyByPnl(setupAgg);
+  var weekdayRank = getBestAndWorstKeyByPnl(weekdayAgg);
+  var streaks = calculateStreaks(sortedTrades);
+  var mostBrokenRule = detectMostBrokenRule(tradesList);
+
+  var avgWin = avgTradePnl(wins);
+  var avgLoss = Math.abs(avgTradePnl(losses));
+
+  setInsightCard('insBestSetup', 'insBestSetupInfo', setupRank.best || '-', setupRank.best ? formatSignedPnl(setupAgg[setupRank.best].pnl) + ' • ' + setupAgg[setupRank.best].trades + ' trades' : 'No setup data');
+  setInsightCard('insWorstSetup', 'insWorstSetupInfo', setupRank.worst || '-', setupRank.worst ? formatSignedPnl(setupAgg[setupRank.worst].pnl) + ' • ' + setupAgg[setupRank.worst].trades + ' trades' : 'No setup data');
+  setInsightCard('insBestWeekday', 'insBestWeekdayInfo', weekdayRank.best || '-', weekdayRank.best ? formatSignedPnl(weekdayAgg[weekdayRank.best].pnl) + ' • ' + weekdayAgg[weekdayRank.best].trades + ' trades' : 'No weekday data');
+  setInsightCard('insWorstWeekday', 'insWorstWeekdayInfo', weekdayRank.worst || '-', weekdayRank.worst ? formatSignedPnl(weekdayAgg[weekdayRank.worst].pnl) + ' • ' + weekdayAgg[weekdayRank.worst].trades + ' trades' : 'No weekday data');
+  setInsightCard('insAvgWin', 'insAvgWinInfo', '+$' + avgWin.toFixed(2), wins.length + ' winning trades');
+  setInsightCard('insAvgLoss', 'insAvgLossInfo', '-$' + avgLoss.toFixed(2), losses.length + ' losing trades');
+  setInsightCard('insLongestWinStreak', 'insLongestWinStreakInfo', String(streaks.maxWin), streaks.maxWin > 0 ? 'trades in a row' : 'No winning streak yet');
+  setInsightCard('insLongestLossStreak', 'insLongestLossStreakInfo', String(streaks.maxLoss), streaks.maxLoss > 0 ? 'trades in a row' : 'No losing streak yet');
+  setInsightCard('insMostBrokenRule', 'insMostBrokenRuleInfo', mostBrokenRule.rule, mostBrokenRule.count > 0 ? mostBrokenRule.count + ' losing trades tagged/noted' : 'Add rule-break tags/notes (e.g., FOMO, revenge)');
+}
+
 function renderAnalytics() {
   var locked = document.getElementById('analyticsLocked');
   var content = document.getElementById('analyticsContent');
@@ -2586,10 +2792,9 @@ function renderAnalytics() {
   locked.style.display = 'none';
   content.style.display = 'block';
 
-  var wins = trades.filter(function(t){return t.pnl > 0;});
-  var losses = trades.filter(function(t){return t.pnl < 0;});
-  var pnls = trades.map(function(t){return t.pnl;});
-
+  var grouped = splitTradesByResult(trades);
+  var wins = grouped.wins;
+  var losses = grouped.losses;
   // Best/Worst
   var best = trades.reduce(function(a,b){return a.pnl > b.pnl ? a : b;});
   var worst = trades.reduce(function(a,b){return a.pnl < b.pnl ? a : b;});
@@ -2599,23 +2804,19 @@ function renderAnalytics() {
   document.getElementById('anWorstTradeInfo').textContent = worst.symbol + ' on ' + formatDate(worst.date);
 
   // Risk/Reward
-  var avgWin = wins.length > 0 ? wins.reduce(function(s,t){return s+t.pnl;},0) / wins.length : 0;
-  var avgLoss = losses.length > 0 ? Math.abs(losses.reduce(function(s,t){return s+t.pnl;},0) / losses.length) : 0;
+  var avgWin = avgTradePnl(wins);
+  var avgLoss = Math.abs(avgTradePnl(losses));
   var rr = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : '-';
   document.getElementById('anRiskReward').textContent = rr !== '-' ? rr + ':1' : '-';
   document.getElementById('anRiskRewardInfo').textContent = avgWin > 0 && avgLoss > 0 ? '$' + avgWin.toFixed(0) + ' / $' + avgLoss.toFixed(0) : 'Avg win / Avg loss';
 
   // Expectancy
-  var totalPnl = pnls.reduce(function(a,b){return a+b;},0);
+  var totalPnl = sumTradePnl(trades);
   document.getElementById('anExpectancy').textContent = '$' + (totalPnl / trades.length).toFixed(2);
 
   // Streaks
   var sorted = trades.slice().sort(function(a,b){return new Date(a.date) - new Date(b.date);});
-  var maxWin = 0, maxLoss = 0, tempWin = 0, tempLoss = 0;
-  for (var i = 0; i < sorted.length; i++) {
-    if (sorted[i].pnl > 0) { tempWin++; tempLoss = 0; if (tempWin > maxWin) maxWin = tempWin; }
-    else if (sorted[i].pnl < 0) { tempLoss++; tempWin = 0; if (tempLoss > maxLoss) maxLoss = tempLoss; }
-  }
+  var streaks = calculateStreaks(sorted);
   var currentStreak = 0, currentType = '';
   for (var i = sorted.length - 1; i >= 0; i--) {
     var type = sorted[i].pnl > 0 ? 'win' : 'loss';
@@ -2623,10 +2824,13 @@ function renderAnalytics() {
     else if (type === currentType) { currentStreak++; }
     else break;
   }
-  document.getElementById('anMaxWinStreak').textContent = maxWin;
-  document.getElementById('anMaxLossStreak').textContent = maxLoss;
+  document.getElementById('anMaxWinStreak').textContent = streaks.maxWin;
+  document.getElementById('anMaxLossStreak').textContent = streaks.maxLoss;
   document.getElementById('anCurrentStreak').textContent = currentStreak;
   document.getElementById('anCurrentStreakLabel').textContent = currentType === 'win' ? 'Win Streak' : 'Loss Streak';
+
+  // Insights cards
+  renderInsights(trades, wins, losses, sorted);
 
   // Day performance
   var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -2645,10 +2849,10 @@ function renderAnalytics() {
   // Long vs Short
   var longs = trades.filter(function(t){return t.direction === 'long';});
   var shorts = trades.filter(function(t){return t.direction === 'short';});
-  var longWins = longs.filter(function(t){return t.pnl > 0;}).length;
-  var shortWins = shorts.filter(function(t){return t.pnl > 0;}).length;
-  var longPnl = longs.reduce(function(s,t){return s+t.pnl;},0);
-  var shortPnl = shorts.reduce(function(s,t){return s+t.pnl;},0);
+  var longWins = splitTradesByResult(longs).wins.length;
+  var shortWins = splitTradesByResult(shorts).wins.length;
+  var longPnl = sumTradePnl(longs);
+  var shortPnl = sumTradePnl(shorts);
   var lsHtml = '';
   lsHtml += '<div class="dist-row"><div class="dist-label">Long (' + longs.length + ')</div><div class="dist-bar">';
   if (longs.length > 0) { var pct = (longWins / longs.length) * 100; lsHtml += '<div class="dist-bar-win" style="width:' + pct + '%"></div><div class="dist-bar-loss" style="width:' + (100-pct) + '%"></div>'; }
@@ -3581,7 +3785,7 @@ function resetEverything() {
 }
 
 function saveSettingsToStorage() {
-  localStorage.setItem('tradingJournalSettings', JSON.stringify(settings));
+  writeStorageJSON('tradingJournalSettings', settings);
   saveSettingsToCloud();
   if (currentUser) {
     document.getElementById('userPlan').textContent = isPremium() ? 'Premium' : 'Free';
@@ -3589,10 +3793,10 @@ function saveSettingsToStorage() {
 }
 
 function loadSettingsFromStorage() {
-  var stored = localStorage.getItem('tradingJournalSettings');
+  var stored = readStorageJSON('tradingJournalSettings');
   if (stored) {
     try { 
-      settings = Object.assign(settings, JSON.parse(stored));
+      settings = Object.assign(settings, stored);
       STARTING_BALANCE = settings.startingBalance;
     } catch(e) {}
   }
@@ -3937,14 +4141,12 @@ function getMoodEmoji(mood) {
 }
 
 function saveJournalToStorage() {
-  localStorage.setItem('tradingJournalEntries', JSON.stringify(journalEntries));
+  writeStorageJSON('tradingJournalEntries', journalEntries);
 }
 
 function loadJournalFromStorage() {
-  var stored = localStorage.getItem('tradingJournalEntries');
-  if (stored) {
-    try { journalEntries = JSON.parse(stored); } catch(e) {}
-  }
+  var stored = readStorageJSON('tradingJournalEntries');
+  if (stored) journalEntries = stored;
 }
 
 function getStrategyStats(strategyName) {
@@ -4068,14 +4270,12 @@ function escapeHtml(text) {
 }
 
 function savePlaybookToStorage() {
-  localStorage.setItem('tradingJournalPlaybook', JSON.stringify(playbook));
+  writeStorageJSON('tradingJournalPlaybook', playbook);
 }
 
 function loadPlaybookFromStorage() {
-  var stored = localStorage.getItem('tradingJournalPlaybook');
-  if (stored) {
-    try { playbook = JSON.parse(stored); } catch(e) {}
-  }
+  var stored = readStorageJSON('tradingJournalPlaybook');
+  if (stored) playbook = stored;
 }
 
 function setRiskPercent(pct) {
@@ -4995,8 +5195,8 @@ function exportTrades() {
   var a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = 'trades.csv'; a.click();
 }
 
-function saveTradesToStorage() { localStorage.setItem('tradingJournalTrades', JSON.stringify(trades)); }
-function loadTradesFromStorage() { var stored = localStorage.getItem('tradingJournalTrades'); if (stored) { try { trades = JSON.parse(stored); } catch(e) {} } }
+function saveTradesToStorage() { writeStorageJSON('tradingJournalTrades', trades); }
+function loadTradesFromStorage() { var stored = readStorageJSON('tradingJournalTrades'); if (stored) trades = stored; }
 
 // Note: App initialization is handled by checkSession() at the top of the script.
 // checkSession() calls either onAuthSuccess() or continueOffline() which calls initApp().
