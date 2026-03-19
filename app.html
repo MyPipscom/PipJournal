@@ -603,8 +603,8 @@
         <div class="page" id="page-journal">
           <header class="header">
             <div class="header-left">
-              <h1>Daily Journal</h1>
-              <p>Record your thoughts, market conditions, and daily reflections</p>
+              <h1>Guided Daily Journal</h1>
+              <p>Capture your plan, execution, lesson, and trading emotion in one structured reflection</p>
             </div>
             <div class="header-actions">
               <button class="btn btn-primary" onclick="openJournalModal()">+ New Entry</button>
@@ -614,13 +614,13 @@
           <!-- Today's Quick Entry -->
           <div class="card" style="margin-bottom:24px">
             <div class="card-header">
-              <h2 class="card-title">📝 Today's Entry</h2>
+              <h2 class="card-title">📝 Today's Guided Reflection</h2>
               <span style="font-size:13px;color:var(--text-muted)" id="journalTodayDate"></span>
             </div>
             <div style="padding:24px" id="todayJournalContent">
               <div class="empty-state">
-                <p>No entry for today yet</p>
-                <button class="btn btn-primary" onclick="openJournalModal()" style="margin-top:12px">Write Today's Entry</button>
+                <p>No guided reflection for today yet</p>
+                <button class="btn btn-primary" onclick="openJournalModal()" style="margin-top:12px">Start Today's Reflection</button>
               </div>
             </div>
           </div>
@@ -628,7 +628,7 @@
           <!-- Past Entries -->
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">Past Entries</h2>
+              <h2 class="card-title">Past Reflections</h2>
               <span style="font-size:13px;color:var(--text-muted)" id="journalCount">0 entries</span>
             </div>
             <div style="padding:24px" id="journalEntriesList">
@@ -1608,7 +1608,7 @@
             <input type="date" class="form-input" id="journalDate">
           </div>
           <div class="form-group">
-            <label class="form-label">Mood</label>
+            <label class="form-label">What emotion affected your trading most today?</label>
             <div class="mood-selector">
               <button type="button" class="mood-btn" data-mood="great" onclick="setJournalMood('great')">😄</button>
               <button type="button" class="mood-btn" data-mood="good" onclick="setJournalMood('good')">🙂</button>
@@ -1620,23 +1620,23 @@
         </div>
         
         <div class="journal-section">
-          <div class="journal-section-title">🌅 Pre-Market Thoughts</div>
-          <textarea class="journal-textarea" id="journalPreMarket" placeholder="What's your plan for today? Any key levels or setups you're watching?"></textarea>
+          <div class="journal-section-title">1. What is your plan before the session?</div>
+          <textarea class="journal-textarea" id="journalPreMarket" placeholder="Outline your plan for the session, key levels, setups, and what you want to avoid."></textarea>
         </div>
         
         <div class="journal-section">
-          <div class="journal-section-title">📊 Market Conditions</div>
-          <textarea class="journal-textarea" id="journalMarketConditions" placeholder="How is the overall market? Trending, choppy, news events?" style="min-height:80px"></textarea>
+          <div class="journal-section-title">2. What are current market conditions?</div>
+          <textarea class="journal-textarea" id="journalMarketConditions" placeholder="Describe the tape: trend, volatility, volume, news, and anything shaping your decision-making." style="min-height:80px"></textarea>
         </div>
         
         <div class="journal-section">
-          <div class="journal-section-title">🌙 End of Day Reflection</div>
-          <textarea class="journal-textarea" id="journalReflection" placeholder="What went well? What could you improve? Did you follow your rules?"></textarea>
+          <div class="journal-section-title">3. How did you execute today?</div>
+          <textarea class="journal-textarea" id="journalReflection" placeholder="Reflect on your execution: what you did well, where you hesitated, and whether you followed your plan."></textarea>
         </div>
         
         <div class="journal-section">
-          <div class="journal-section-title">💡 Lessons Learned</div>
-          <textarea class="journal-textarea" id="journalLessons" placeholder="Key takeaways from today..." style="min-height:80px"></textarea>
+          <div class="journal-section-title">4. What mistake or lesson stands out?</div>
+          <textarea class="journal-textarea" id="journalLessons" placeholder="Capture the biggest mistake, lesson, or reminder you want to carry into the next session." style="min-height:80px"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -4297,21 +4297,21 @@ function renderJournal() {
     html += '</div></div>';
     
     if (todayEntry.preMarket) {
-      html += '<div class="journal-section"><div class="journal-section-title">🌅 Pre-Market</div><p style="color:var(--text-secondary);line-height:1.6">' + escapeHtml(todayEntry.preMarket) + '</p></div>';
+      html += '<div class="journal-section"><div class="journal-section-title">1. What is your plan before the session?</div><p style="color:var(--text-secondary);line-height:1.6">' + escapeHtml(todayEntry.preMarket) + '</p></div>';
     }
     if (todayEntry.marketConditions) {
-      html += '<div class="journal-section"><div class="journal-section-title">📊 Market Conditions</div><p style="color:var(--text-secondary);line-height:1.6">' + escapeHtml(todayEntry.marketConditions) + '</p></div>';
+      html += '<div class="journal-section"><div class="journal-section-title">2. What are current market conditions?</div><p style="color:var(--text-secondary);line-height:1.6">' + escapeHtml(todayEntry.marketConditions) + '</p></div>';
     }
     if (todayEntry.reflection) {
-      html += '<div class="journal-section"><div class="journal-section-title">🌙 Reflection</div><p style="color:var(--text-secondary);line-height:1.6">' + escapeHtml(todayEntry.reflection) + '</p></div>';
+      html += '<div class="journal-section"><div class="journal-section-title">3. How did you execute today?</div><p style="color:var(--text-secondary);line-height:1.6">' + escapeHtml(todayEntry.reflection) + '</p></div>';
     }
     if (todayEntry.lessons) {
-      html += '<div class="journal-section"><div class="journal-section-title">💡 Lessons</div><p style="color:var(--text-secondary);line-height:1.6">' + escapeHtml(todayEntry.lessons) + '</p></div>';
+      html += '<div class="journal-section"><div class="journal-section-title">4. What mistake or lesson stands out?</div><p style="color:var(--text-secondary);line-height:1.6">' + escapeHtml(todayEntry.lessons) + '</p></div>';
     }
     
     todayContainer.innerHTML = html;
   } else {
-    todayContainer.innerHTML = '<div class="empty-state"><p style="color:var(--text-muted)">No entry for today yet</p></div>';
+    todayContainer.innerHTML = '<div class="empty-state"><p style="color:var(--text-muted)">No guided reflection for today yet</p></div>';
   }
   
   // Render past entries
