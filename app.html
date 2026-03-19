@@ -386,6 +386,13 @@
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .logout-btn { width: 100%; padding: 8px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 12px; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; margin-top: 8px; }
     .logout-btn:hover { border-color: var(--accent-red); color: var(--accent-red); }
+
+    .import-note { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .import-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    .import-status.valid { background: var(--accent-green-dim); color: var(--accent-green); }
+    .import-status.invalid { background: var(--accent-red-dim); color: var(--accent-red); }
+    .import-preview-table { width: 100%; overflow-x: auto; }
+    .import-preview-table .table-header, .import-preview-table .table-row { grid-template-columns: 64px 120px 1fr 1.1fr 0.9fr 0.9fr 1.2fr; min-width: 920px; }
     @media (max-width: 768px) { .sidebar { display: none; } .form-row { grid-template-columns: 1fr; } .form-group.full-width { grid-column: span 1; } .day-heatmap { grid-template-columns: repeat(4, 1fr); } }
     @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
     html, body, button, input, select, textarea, table, th, td, h1, h2, h3, h4, h5, h6, p, a, span, div, label { font-family: 'Inter', sans-serif !important; }
@@ -583,7 +590,7 @@
         </div>
         <!-- TRADE LOG -->
         <div class="page" id="page-tradelog">
-          <header class="header"><div class="header-left"><h1>Trade Log</h1><p>Complete history of all your trades</p></div><div class="header-actions"><button class="btn btn-secondary" onclick="exportTrades()">Export CSV</button><button class="btn btn-primary" onclick="openModal()">+ New Trade</button></div></header>
+          <header class="header"><div class="header-left"><h1>Trade Log</h1><p>Complete history of all your trades</p></div><div class="header-actions"><button class="btn btn-secondary" onclick="openImportCsvModal()">Import CSV</button><button class="btn btn-secondary" onclick="exportTrades()">Export CSV</button><button class="btn btn-primary" onclick="openModal()">+ New Trade</button></div></header>
           <div class="card">
             <div class="card-header"><div class="card-actions"><input type="text" class="search-input" id="searchInput" placeholder="Search symbol..." oninput="renderFullTradeLog()"><button class="filter-btn active" onclick="setLogFilter('all', this)">All</button><button class="filter-btn" onclick="setLogFilter('winners', this)">Winners</button><button class="filter-btn" onclick="setLogFilter('losers', this)">Losers</button></div><span style="font-size:13px;color:var(--text-muted)" id="tradeCount">0 trades</span></div>
             <div id="tagFiltersContainer" style="padding:0 24px 16px;display:none"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span style="font-size:12px;color:var(--text-muted);margin-right:4px">Filter by tag:</span><div id="tagFiltersList"></div><button class="tag-filter" id="clearTagFilter" onclick="clearTagFilter()" style="display:none">Clear filter ×</button></div></div>
@@ -1568,6 +1575,26 @@
   <div class="toast" id="toast"><div class="toast-text" id="toastText">Trade deleted.</div><div class="toast-actions"><button class="toast-btn undo" id="toastUndo">Undo</button><button class="toast-btn" id="toastDismiss">×</button></div></div>
 
   <!-- Journal Modal -->
+
+  <div class="modal-overlay" id="importCsvModal" onclick="if(event.target===this)closeImportCsvModal()">
+    <div class="modal" style="max-width:1100px;min-height:auto;margin:40px auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg-secondary)">
+      <div class="modal-header"><div><div class="modal-title">Import Trades from CSV</div><div class="import-note">Upload a CSV, review valid and invalid rows, then confirm the import.</div></div><button class="modal-close" onclick="closeImportCsvModal()">×</button></div>
+      <div class="modal-body" style="padding-top:0">
+        <input type="file" id="importCsvFile" accept=".csv,text/csv" style="display:none" onchange="handleImportCsvFile(event)">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+          <button class="btn btn-primary" type="button" onclick="triggerImportCsvFile()">Choose CSV File</button>
+          <span class="import-note" id="importCsvFileName">No file selected.</span>
+        </div>
+        <div id="importCsvSummary" class="import-note" style="margin-bottom:16px">Upload a CSV with trade rows to preview the import.</div>
+        <div id="importCsvPreviewEmpty" class="empty-state" style="padding:36px 24px"><p>No CSV loaded yet</p><p class="import-note" style="margin-top:8px">Supported columns include Date, Time, Symbol, Direction, Entry, Exit, P/L, Strategy, Notes, Rating, Tags, Followed Rules, and Mistake Tag.</p></div>
+        <div id="importCsvPreview" style="display:none">
+          <div class="import-preview-table"><div class="table-header"><div>Row</div><div>Status</div><div>Trade</div><div>Details</div><div>P/L</div><div>R</div><div>Reason</div></div><div id="importCsvPreviewRows"></div></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="closeImportCsvModal()">Cancel</button><button class="btn btn-primary" id="confirmImportCsvBtn" onclick="confirmImportCsv()" disabled>Import Valid Trades</button></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="journalModal" onclick="if(event.target===this)closeJournalModal()">
     <div class="modal" style="max-width:700px">
       <div class="modal-header">
@@ -2191,6 +2218,8 @@ var settings = {
   subscription: 'free',
   subscriptionDate: null
 };
+var importedCsvRows = [];
+var importedCsvValidTrades = [];
 var currentFilter = 'all';
 var logFilter = 'all';
 var tagFilter = null;
@@ -5404,6 +5433,291 @@ function saveTrade() {
   renderTrades();
   renderFullTradeLog();
   updateStats();
+}
+
+
+function openImportCsvModal() {
+  importedCsvRows = [];
+  importedCsvValidTrades = [];
+  document.getElementById('importCsvFile').value = '';
+  document.getElementById('importCsvFileName').textContent = 'No file selected.';
+  document.getElementById('importCsvSummary').textContent = 'Upload a CSV with trade rows to preview the import.';
+  document.getElementById('importCsvPreviewEmpty').style.display = 'block';
+  document.getElementById('importCsvPreview').style.display = 'none';
+  document.getElementById('importCsvPreviewRows').innerHTML = '';
+  document.getElementById('confirmImportCsvBtn').disabled = true;
+  document.getElementById('importCsvModal').classList.add('active');
+}
+
+function closeImportCsvModal() {
+  document.getElementById('importCsvModal').classList.remove('active');
+}
+
+function triggerImportCsvFile() {
+  document.getElementById('importCsvFile').click();
+}
+
+function normalizeImportHeader(header) {
+  return String(header || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function parseCsvText(text) {
+  var rows = [];
+  var row = [];
+  var value = '';
+  var inQuotes = false;
+  for (var i = 0; i < text.length; i++) {
+    var char = text[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[i + 1] === '"') {
+          value += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        value += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ',') {
+      row.push(value);
+      value = '';
+    } else if (char === '\n') {
+      row.push(value);
+      rows.push(row);
+      row = [];
+      value = '';
+    } else if (char !== '\r') {
+      value += char;
+    }
+  }
+  if (value.length || row.length) {
+    row.push(value);
+    rows.push(row);
+  }
+  return rows.filter(function(r) {
+    return r.some(function(cell) { return String(cell || '').trim() !== ''; });
+  });
+}
+
+function getImportColumnMap(headers) {
+  var aliases = {
+    date: ['date', 'tradedate'],
+    time: ['time', 'tradetime', 'entrytime'],
+    symbol: ['symbol', 'ticker'],
+    direction: ['direction', 'side'],
+    entry: ['entry', 'entryprice'],
+    exit: ['exit', 'exitprice'],
+    quantity: ['quantity', 'qty', 'size'],
+    stopLoss: ['stoploss', 'stop', 'sl'],
+    pnl: ['pnl', 'pl', 'profitloss', 'profit', 'netpnl'],
+    rMultiple: ['rmultiple', 'r', 'rr', 'riskreward'],
+    riskAmount: ['riskamount', 'risk', 'riskusd'],
+    strategy: ['strategy', 'setup'],
+    notes: ['notes', 'note', 'comment', 'comments'],
+    rating: ['rating', 'grade', 'score'],
+    tags: ['tags', 'tag'],
+    followedRules: ['followedrules', 'followedrule', 'checklistfollowed', 'rulesfollowed'],
+    mistakeTag: ['mistaketag', 'mistake', 'rulebreak', 'brokenrule']
+  };
+  var normalizedHeaders = headers.map(normalizeImportHeader);
+  var map = {};
+  Object.keys(aliases).forEach(function(field) {
+    for (var i = 0; i < normalizedHeaders.length; i++) {
+      if (aliases[field].indexOf(normalizedHeaders[i]) !== -1) {
+        map[field] = i;
+        break;
+      }
+    }
+  });
+  return map;
+}
+
+function parseImportNumber(value) {
+  if (value === null || value === undefined) return null;
+  var cleaned = String(value).trim().replace(/[$,%\s]/g, '').replace(/,/g, '');
+  if (!cleaned) return null;
+  var num = parseFloat(cleaned);
+  return isNaN(num) ? NaN : num;
+}
+
+function parseImportBoolean(value) {
+  if (value === null || value === undefined) return null;
+  var normalized = String(value).trim().toLowerCase();
+  if (!normalized) return null;
+  if (['true', 'yes', 'y', '1', 'followed'].indexOf(normalized) !== -1) return true;
+  if (['false', 'no', 'n', '0', 'broken'].indexOf(normalized) !== -1) return false;
+  return null;
+}
+
+function parseImportTags(value) {
+  if (!value) return [];
+  return String(value).split(/[|;,]/).map(function(tag) { return tag.trim(); }).filter(Boolean);
+}
+
+function normalizeImportDirection(value) {
+  var normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '';
+  if (['buy', 'long'].indexOf(normalized) !== -1) return 'long';
+  if (['sell', 'short'].indexOf(normalized) !== -1) return 'short';
+  return normalized;
+}
+
+function buildImportedTrade(row, rowNumber, columnMap) {
+  function get(field) {
+    return columnMap[field] !== undefined ? String(row[columnMap[field]] || '').trim() : '';
+  }
+  var trade = {
+    id: Date.now() + rowNumber,
+    date: get('date'),
+    time: get('time') || null,
+    symbol: get('symbol').toUpperCase(),
+    direction: normalizeImportDirection(get('direction') || 'long'),
+    entry: parseImportNumber(get('entry')),
+    exit: parseImportNumber(get('exit')),
+    quantity: parseImportNumber(get('quantity')),
+    stopLoss: parseImportNumber(get('stopLoss')),
+    pnl: parseImportNumber(get('pnl')),
+    rMultiple: parseImportNumber(get('rMultiple')),
+    riskAmount: parseImportNumber(get('riskAmount')),
+    strategy: get('strategy'),
+    notes: get('notes'),
+    image: null,
+    rating: parseImportNumber(get('rating')),
+    tags: parseImportTags(get('tags')),
+    followedRules: parseImportBoolean(get('followedRules')),
+    mistakeTag: get('mistakeTag') || null
+  };
+  ['entry', 'exit', 'quantity', 'stopLoss', 'rMultiple', 'riskAmount', 'rating'].forEach(function(key) {
+    if (trade[key] !== null && isNaN(trade[key])) trade[key] = NaN;
+  });
+  return trade;
+}
+
+function getImportedTradeDuplicateKey(trade) {
+  return [
+    String(trade.date || ''),
+    String(trade.time || ''),
+    String(trade.symbol || '').toUpperCase(),
+    String(trade.direction || ''),
+    String(trade.entry || ''),
+    String(trade.exit || ''),
+    String(trade.quantity || ''),
+    String(trade.pnl || ''),
+    String(trade.strategy || ''),
+    String(trade.notes || '')
+  ].join('|');
+}
+
+function isDuplicateImportedTrade(trade) {
+  return trades.some(function(existing) {
+    return String(existing.date || '') === String(trade.date || '') &&
+      String(existing.time || '') === String(trade.time || '') &&
+      String(existing.symbol || '').toUpperCase() === String(trade.symbol || '').toUpperCase() &&
+      String(existing.direction || '') === String(trade.direction || '') &&
+      Number(existing.entry || 0) === Number(trade.entry || 0) &&
+      Number(existing.exit || 0) === Number(trade.exit || 0) &&
+      Number(existing.quantity || 0) === Number(trade.quantity || 0) &&
+      Number(existing.pnl || 0) === Number(trade.pnl || 0) &&
+      String(existing.strategy || '') === String(trade.strategy || '') &&
+      String(existing.notes || '') === String(trade.notes || '');
+  });
+}
+
+function validateImportedTrade(trade, rowNumber) {
+  var reasons = [];
+  if (!trade.date) reasons.push('Missing date');
+  if (!trade.symbol) reasons.push('Missing symbol');
+  if (trade.direction !== 'long' && trade.direction !== 'short') reasons.push('Direction must be long/short');
+  if (trade.pnl === null || isNaN(trade.pnl)) reasons.push('Missing or invalid P/L');
+  ['entry', 'exit', 'quantity', 'stopLoss', 'rMultiple', 'riskAmount', 'rating'].forEach(function(key) {
+    if (isNaN(trade[key])) reasons.push('Invalid ' + key);
+  });
+  if (isDuplicateImportedTrade(trade)) reasons.push('Duplicate of an existing trade');
+  return {
+    rowNumber: rowNumber,
+    trade: trade,
+    valid: reasons.length === 0,
+    reason: reasons.join(' • ') || 'Ready to import'
+  };
+}
+
+function renderImportCsvPreview(results, fileName) {
+  importedCsvRows = results;
+  importedCsvValidTrades = results.filter(function(result) { return result.valid; }).map(function(result) { return result.trade; });
+  document.getElementById('importCsvFileName').textContent = fileName || 'CSV loaded';
+  document.getElementById('importCsvPreviewEmpty').style.display = results.length ? 'none' : 'block';
+  document.getElementById('importCsvPreview').style.display = results.length ? 'block' : 'none';
+  document.getElementById('confirmImportCsvBtn').disabled = importedCsvValidTrades.length === 0;
+  var invalidCount = results.length - importedCsvValidTrades.length;
+  document.getElementById('importCsvSummary').textContent = results.length + ' row' + (results.length === 1 ? '' : 's') + ' parsed • ' + importedCsvValidTrades.length + ' valid • ' + invalidCount + ' invalid/skipped';
+  var html = '';
+  results.forEach(function(result) {
+    var trade = result.trade;
+    html += '<div class="table-row">';
+    html += '<div>#' + result.rowNumber + '</div>';
+    html += '<div><span class="import-status ' + (result.valid ? 'valid' : 'invalid') + '">' + (result.valid ? 'Valid' : 'Invalid') + '</span></div>';
+    html += '<div><div style="font-weight:600">' + escapeHtml(trade.symbol || '—') + '</div><div style="font-size:12px;color:var(--text-muted)">' + escapeHtml(trade.date || 'No date') + (trade.time ? ' ' + escapeHtml(trade.time) : '') + '</div></div>';
+    html += '<div><div>' + escapeHtml(trade.strategy || 'No strategy') + '</div><div style="font-size:12px;color:var(--text-muted)">' + escapeHtml(trade.direction || '—') + (trade.quantity !== null && !isNaN(trade.quantity) ? ' • Qty ' + trade.quantity : '') + '</div></div>';
+    html += '<div>' + (trade.pnl !== null && !isNaN(trade.pnl) ? (trade.pnl >= 0 ? '+' : '-') + '$' + Math.abs(trade.pnl).toFixed(2) : '—') + '</div>';
+    html += '<div>' + (trade.rMultiple !== null && !isNaN(trade.rMultiple) ? trade.rMultiple.toFixed(2) + 'R' : '—') + '</div>';
+    html += '<div style="font-size:12px;color:' + (result.valid ? 'var(--text-secondary)' : 'var(--accent-red)') + '">' + escapeHtml(result.reason) + '</div>';
+    html += '</div>';
+  });
+  document.getElementById('importCsvPreviewRows').innerHTML = html;
+}
+
+function handleImportCsvFile(event) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var rows = parseCsvText(String(e.target.result || ''));
+      if (rows.length < 2) {
+        renderImportCsvPreview([], file.name);
+        document.getElementById('importCsvSummary').textContent = 'CSV must include a header row and at least one data row.';
+        return;
+      }
+      var headers = rows[0];
+      var columnMap = getImportColumnMap(headers);
+      if (columnMap.date === undefined || columnMap.symbol === undefined || columnMap.pnl === undefined) {
+        renderImportCsvPreview([], file.name);
+        document.getElementById('importCsvSummary').textContent = 'Required columns missing. Include at least Date, Symbol, and P/L.';
+        return;
+      }
+      var seenImportKeys = {};
+      var results = rows.slice(1).map(function(row, index) {
+        var result = validateImportedTrade(buildImportedTrade(row, index + 2, columnMap), index + 2);
+        var duplicateKey = getImportedTradeDuplicateKey(result.trade);
+        if (result.valid && seenImportKeys[duplicateKey]) {
+          result.valid = false;
+          result.reason = 'Duplicate row in this CSV';
+        }
+        seenImportKeys[duplicateKey] = true;
+        return result;
+      });
+      renderImportCsvPreview(results, file.name);
+    } catch (err) {
+      renderImportCsvPreview([], file.name);
+      document.getElementById('importCsvSummary').textContent = 'Could not parse CSV: ' + err.message;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmImportCsv() {
+  if (!importedCsvValidTrades.length) return;
+  trades = importedCsvValidTrades.concat(trades);
+  saveTradesToStorage();
+  importedCsvValidTrades.forEach(function(trade) { syncTradeToCloud(trade); });
+  closeImportCsvModal();
+  renderTrades();
+  renderFullTradeLog();
+  updateStats();
+  showToast('Imported ' + importedCsvValidTrades.length + ' trade' + (importedCsvValidTrades.length === 1 ? '' : 's') + '.');
 }
 
 function exportTrades() {
