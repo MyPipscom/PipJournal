@@ -2460,10 +2460,10 @@ function getDisciplineDayBuckets(list) {
   return buckets;
 }
 
-function calculateDisciplineScoreMetrics(list) {
+function calculateDisciplineScoreCore(list) {
   var totalTrades = list.length;
   if (totalTrades === 0) {
-    return { score: null, followRate: null, topMistake: null, topMistakeCount: 0, weekly: [], components: null };
+    return { score: null, followRate: null, topMistake: null, topMistakeCount: 0, components: null, sortedByDate: [] };
   }
 
   var followedCount = 0;
@@ -2529,8 +2529,24 @@ function calculateDisciplineScoreMetrics(list) {
     }
   });
 
+  return {
+    score: score,
+    followRate: followedDataCount > 0 ? followRate : null,
+    topMistake: topMistake,
+    topMistakeCount: topMistakeCount,
+    components: components,
+    sortedByDate: sortedByDate
+  };
+}
+
+function calculateDisciplineScoreMetrics(list) {
+  var base = calculateDisciplineScoreCore(list);
+  if (base.score === null) {
+    return { score: null, followRate: null, topMistake: null, topMistakeCount: 0, weekly: [], components: null };
+  }
+
   var weeklyBuckets = {};
-  sortedByDate.forEach(function(t) {
+  base.sortedByDate.forEach(function(t) {
     var d = new Date(t.date + 'T12:00:00');
     var day = d.getDay();
     var mondayOffset = day === 0 ? -6 : (1 - day);
@@ -2546,17 +2562,17 @@ function calculateDisciplineScoreMetrics(list) {
   });
 
   return {
-    score: score,
-    followRate: followedDataCount > 0 ? followRate : null,
-    topMistake: topMistake,
-    topMistakeCount: topMistakeCount,
+    score: base.score,
+    followRate: base.followRate,
+    topMistake: base.topMistake,
+    topMistakeCount: base.topMistakeCount,
     weekly: weekly,
-    components: components
+    components: base.components
   };
 }
 
 function calculateDisciplineScoreMetricsLite(list) {
-  var metrics = calculateDisciplineScoreMetrics(list);
+  var metrics = calculateDisciplineScoreCore(list);
   return { score: metrics.score === null ? 0 : metrics.score };
 }
 
