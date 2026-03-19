@@ -657,15 +657,16 @@
             <div class="card" style="margin-bottom:24px">
               <div class="card-header"><h2 class="card-title">💡 Insights</h2></div>
               <div class="stats-grid" style="padding:24px" id="insightsGrid">
-                <div class="stat-card neutral"><div class="stat-label">Best Setup</div><div class="stat-value" id="insBestSetup">-</div><div class="stat-change neutral" id="insBestSetupInfo">-</div></div>
-                <div class="stat-card neutral"><div class="stat-label">Worst Setup</div><div class="stat-value" id="insWorstSetup">-</div><div class="stat-change neutral" id="insWorstSetupInfo">-</div></div>
-                <div class="stat-card neutral"><div class="stat-label">Best Weekday</div><div class="stat-value" id="insBestWeekday">-</div><div class="stat-change neutral" id="insBestWeekdayInfo">-</div></div>
-                <div class="stat-card neutral"><div class="stat-label">Worst Weekday</div><div class="stat-value" id="insWorstWeekday">-</div><div class="stat-change neutral" id="insWorstWeekdayInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Best Performing Strategy</div><div class="stat-value" id="insBestSetup">-</div><div class="stat-change neutral" id="insBestSetupInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Least Profitable Strategy</div><div class="stat-value" id="insWorstSetup">-</div><div class="stat-change neutral" id="insWorstSetupInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Most Profitable Weekday</div><div class="stat-value" id="insBestWeekday">-</div><div class="stat-change neutral" id="insBestWeekdayInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Least Profitable Weekday</div><div class="stat-value" id="insWorstWeekday">-</div><div class="stat-change neutral" id="insWorstWeekdayInfo">-</div></div>
                 <div class="stat-card positive"><div class="stat-label">Average Win</div><div class="stat-value" id="insAvgWin">+$0.00</div><div class="stat-change neutral" id="insAvgWinInfo">-</div></div>
                 <div class="stat-card negative"><div class="stat-label">Average Loss</div><div class="stat-value" id="insAvgLoss">-$0.00</div><div class="stat-change neutral" id="insAvgLossInfo">-</div></div>
                 <div class="stat-card positive"><div class="stat-label">Longest Win Streak</div><div class="stat-value" id="insLongestWinStreak">0</div><div class="stat-change neutral" id="insLongestWinStreakInfo">-</div></div>
                 <div class="stat-card negative"><div class="stat-label">Longest Loss Streak</div><div class="stat-value" id="insLongestLossStreak">0</div><div class="stat-change neutral" id="insLongestLossStreakInfo">-</div></div>
-                <div class="stat-card neutral"><div class="stat-label">Most Broken Rule</div><div class="stat-value" id="insMostBrokenRule">-</div><div class="stat-change neutral" id="insMostBrokenRuleInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">Common Mistake Tag</div><div class="stat-value" id="insMostBrokenRule">-</div><div class="stat-change neutral" id="insMostBrokenRuleInfo">-</div></div>
+                <div class="stat-card neutral"><div class="stat-label">P/L: Followed vs Broken</div><div class="stat-value" id="insFollowedVsBroken">-</div><div class="stat-change neutral" id="insFollowedVsBrokenInfo">-</div></div>
               </div>
             </div>
             
@@ -2936,6 +2937,39 @@ function normalizeRuleText(text) {
   return text.toLowerCase().replace(/[_-]/g, ' ').trim();
 }
 
+function getMostCommonMistakeTag(list) {
+  var counts = {};
+  list.forEach(function(t) {
+    var tag = getTradeMistakeTagValue(t);
+    if (!tag) return;
+    counts[tag] = (counts[tag] || 0) + 1;
+  });
+  var keys = Object.keys(counts);
+  if (keys.length === 0) return { tag: '-', count: 0 };
+  keys.sort(function(a, b) { return counts[b] - counts[a]; });
+  return { tag: keys[0], count: counts[keys[0]] };
+}
+
+function getFollowedRulesPnlSplit(list) {
+  var followed = [];
+  var broken = [];
+  list.forEach(function(t) {
+    var followedValue = getTradeFollowedRulesValue(t);
+    if (followedValue === true) followed.push(t);
+    if (followedValue === false) broken.push(t);
+  });
+  if (!followed.length || !broken.length) {
+    return { ready: false, followedCount: followed.length, brokenCount: broken.length };
+  }
+  return {
+    ready: true,
+    followedCount: followed.length,
+    brokenCount: broken.length,
+    followedPnl: sumTradePnl(followed),
+    brokenPnl: sumTradePnl(broken)
+  };
+}
+
 function detectMostBrokenRule(list) {
   var ruleMap = {
     'fomo': 'FOMO Entry',
@@ -2987,20 +3021,22 @@ function renderInsights(tradesList, wins, losses, sortedTrades) {
   var setupRank = getBestAndWorstKeyByPnl(setupAgg);
   var weekdayRank = getBestAndWorstKeyByPnl(weekdayAgg);
   var streaks = calculateStreaks(sortedTrades);
-  var mostBrokenRule = detectMostBrokenRule(tradesList);
+  var mostCommonMistake = getMostCommonMistakeTag(tradesList);
+  var followedSplit = getFollowedRulesPnlSplit(tradesList);
 
   var avgWin = avgTradePnl(wins);
   var avgLoss = Math.abs(avgTradePnl(losses));
 
-  setInsightCard('insBestSetup', 'insBestSetupInfo', setupRank.best || '-', setupRank.best ? formatSignedPnl(setupAgg[setupRank.best].pnl) + ' • ' + setupAgg[setupRank.best].trades + ' trades' : 'No setup data');
-  setInsightCard('insWorstSetup', 'insWorstSetupInfo', setupRank.worst || '-', setupRank.worst ? formatSignedPnl(setupAgg[setupRank.worst].pnl) + ' • ' + setupAgg[setupRank.worst].trades + ' trades' : 'No setup data');
+  setInsightCard('insBestSetup', 'insBestSetupInfo', setupRank.best || '-', setupRank.best ? formatSignedPnl(setupAgg[setupRank.best].pnl) + ' • ' + setupAgg[setupRank.best].trades + ' trades' : 'No strategy data');
+  setInsightCard('insWorstSetup', 'insWorstSetupInfo', setupRank.worst || '-', setupRank.worst ? formatSignedPnl(setupAgg[setupRank.worst].pnl) + ' • ' + setupAgg[setupRank.worst].trades + ' trades' : 'No strategy data');
   setInsightCard('insBestWeekday', 'insBestWeekdayInfo', weekdayRank.best || '-', weekdayRank.best ? formatSignedPnl(weekdayAgg[weekdayRank.best].pnl) + ' • ' + weekdayAgg[weekdayRank.best].trades + ' trades' : 'No weekday data');
   setInsightCard('insWorstWeekday', 'insWorstWeekdayInfo', weekdayRank.worst || '-', weekdayRank.worst ? formatSignedPnl(weekdayAgg[weekdayRank.worst].pnl) + ' • ' + weekdayAgg[weekdayRank.worst].trades + ' trades' : 'No weekday data');
   setInsightCard('insAvgWin', 'insAvgWinInfo', '+$' + avgWin.toFixed(2), wins.length + ' winning trades');
   setInsightCard('insAvgLoss', 'insAvgLossInfo', '-$' + avgLoss.toFixed(2), losses.length + ' losing trades');
   setInsightCard('insLongestWinStreak', 'insLongestWinStreakInfo', String(streaks.maxWin), streaks.maxWin > 0 ? 'trades in a row' : 'No winning streak yet');
   setInsightCard('insLongestLossStreak', 'insLongestLossStreakInfo', String(streaks.maxLoss), streaks.maxLoss > 0 ? 'trades in a row' : 'No losing streak yet');
-  setInsightCard('insMostBrokenRule', 'insMostBrokenRuleInfo', mostBrokenRule.rule, mostBrokenRule.count > 0 ? mostBrokenRule.count + ' losing trades tagged/noted' : 'Add rule-break tags/notes (e.g., FOMO, revenge)');
+  setInsightCard('insMostBrokenRule', 'insMostBrokenRuleInfo', mostCommonMistake.tag, mostCommonMistake.count > 0 ? mostCommonMistake.count + ' trade' + (mostCommonMistake.count === 1 ? '' : 's') + ' with this tag' : 'Add mistake tags to trades for better coaching');
+  setInsightCard('insFollowedVsBroken', 'insFollowedVsBrokenInfo', followedSplit.ready ? formatSignedPnl(followedSplit.followedPnl) + ' vs ' + formatSignedPnl(followedSplit.brokenPnl) : '-', followedSplit.ready ? followedSplit.followedCount + ' followed • ' + followedSplit.brokenCount + ' broken' : 'Need trades marked followedRules = true and false');
 }
 
 function renderAnalytics() {
