@@ -2450,10 +2450,20 @@ function countRiskViolations(list) {
   return violations;
 }
 
+function getDisciplineDayBuckets(list) {
+  var buckets = {};
+  list.forEach(function(t) {
+    if (!buckets[t.date]) buckets[t.date] = { pnl: 0, trades: 0 };
+    buckets[t.date].pnl += t.pnl;
+    buckets[t.date].trades++;
+  });
+  return buckets;
+}
+
 function calculateDisciplineScoreMetrics(list) {
   var totalTrades = list.length;
   if (totalTrades === 0) {
-    return { score: null, followRate: null, mistakeFreq: 0, riskViolationFreq: 0, topMistake: null, topMistakeCount: 0, weekly: [] };
+    return { score: null, followRate: null, topMistake: null, topMistakeCount: 0, weekly: [], components: null };
   }
 
   var followedCount = 0;
@@ -2476,11 +2486,38 @@ function calculateDisciplineScoreMetrics(list) {
 
   var sortedByDate = list.slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
   var riskViolations = countRiskViolations(sortedByDate);
+  var dayBuckets = getDisciplineDayBuckets(list);
+  var activeDays = Math.max(1, Object.keys(dayBuckets).length);
+  var lossLimitDays = 0;
+  var overtradeDays = 0;
+  Object.keys(dayBuckets).forEach(function(dayKey) {
+    var day = dayBuckets[dayKey];
+    if (settings.maxDailyLoss > 0 && Math.abs(Math.min(day.pnl, 0)) >= settings.maxDailyLoss) lossLimitDays++;
+    if (settings.maxTradesPerDay > 0 && day.trades > settings.maxTradesPerDay) overtradeDays++;
+  });
 
   var followRate = followedDataCount > 0 ? followedCount / followedDataCount : 0.5;
-  var mistakeFreq = mistakesCount / totalTrades;
-  var riskViolationFreq = riskViolations / totalTrades;
-  var rawScore = 100 * (0.5 * followRate + 0.25 * (1 - mistakeFreq) + 0.25 * (1 - riskViolationFreq));
+  var mistakeScore = 1 - (mistakesCount / totalTrades);
+  var riskScore = 1 - (riskViolations / totalTrades);
+  var lossLimitScore = settings.maxDailyLoss > 0 ? 1 - (lossLimitDays / activeDays) : 1;
+  var pacingScore = settings.maxTradesPerDay > 0 ? 1 - (overtradeDays / activeDays) : 1;
+
+  var components = {
+    followRate: followRate,
+    mistakeScore: Math.max(0, mistakeScore),
+    riskScore: Math.max(0, riskScore),
+    lossLimitScore: Math.max(0, lossLimitScore),
+    pacingScore: Math.max(0, pacingScore),
+    followedCount: followedCount,
+    followedDataCount: followedDataCount,
+    mistakesCount: mistakesCount,
+    riskViolations: riskViolations,
+    lossLimitDays: lossLimitDays,
+    overtradeDays: overtradeDays,
+    activeDays: activeDays
+  };
+
+  var rawScore = 100 * ((0.4 * components.followRate) + (0.2 * components.mistakeScore) + (0.2 * components.riskScore) + (0.1 * components.lossLimitScore) + (0.1 * components.pacingScore));
   var score = Math.max(0, Math.min(100, Math.round(rawScore)));
 
   var topMistake = null;
@@ -2511,32 +2548,16 @@ function calculateDisciplineScoreMetrics(list) {
   return {
     score: score,
     followRate: followedDataCount > 0 ? followRate : null,
-    mistakeFreq: mistakeFreq,
-    riskViolationFreq: riskViolationFreq,
     topMistake: topMistake,
     topMistakeCount: topMistakeCount,
-    weekly: weekly
+    weekly: weekly,
+    components: components
   };
 }
 
 function calculateDisciplineScoreMetricsLite(list) {
-  var total = list.length || 1;
-  var followedCount = 0;
-  var followedDataCount = 0;
-  var mistakesCount = 0;
-  list.forEach(function(t) {
-    var followed = getTradeFollowedRulesValue(t);
-    if (followed !== null) {
-      followedDataCount++;
-      if (followed) followedCount++;
-    }
-    if (getTradeMistakeTagValue(t)) mistakesCount++;
-  });
-  var followRate = followedDataCount > 0 ? followedCount / followedDataCount : 0.5;
-  var riskViolationFreq = countRiskViolations(list.slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); })) / total;
-  var mistakeFreq = mistakesCount / total;
-  var score = Math.max(0, Math.min(100, Math.round(100 * (0.5 * followRate + 0.25 * (1 - mistakeFreq) + 0.25 * (1 - riskViolationFreq)))));
-  return { score: score };
+  var metrics = calculateDisciplineScoreMetrics(list);
+  return { score: metrics.score === null ? 0 : metrics.score };
 }
 
 function renderDisciplineDashboard() {
@@ -2550,7 +2571,7 @@ function renderDisciplineDashboard() {
     scoreInfoEl.textContent = 'Need more trades';
     scoreCard.className = 'stat-card neutral';
     document.getElementById('disciplineFollowRate').textContent = '-';
-    document.getElementById('disciplineFollowInfo').textContent = 'No checklist data yet';
+    document.getElementById('disciplineFollowInfo').textContent = 'No followedRules data yet';
     document.getElementById('disciplineTopMistake').textContent = '-';
     document.getElementById('disciplineTopMistakeInfo').textContent = 'No mistake tags yet';
     document.getElementById('disciplineTrend').innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Log trades to see weekly trend</div>';
@@ -2558,11 +2579,11 @@ function renderDisciplineDashboard() {
   }
 
   scoreEl.textContent = m.score + '/100';
-  scoreInfoEl.textContent = 'Mistakes: ' + Math.round(m.mistakeFreq * 100) + '% • Risk violations: ' + Math.round(m.riskViolationFreq * 100) + '%';
+  scoreInfoEl.textContent = 'Rules ' + Math.round(m.components.followRate * 100) + '% • Risk ' + m.components.riskViolations + ' • Loss-limit days ' + m.components.lossLimitDays + ' • Overtrade days ' + m.components.overtradeDays;
   scoreCard.className = 'stat-card ' + (m.score >= 80 ? 'positive' : (m.score >= 60 ? 'neutral' : 'negative'));
 
   document.getElementById('disciplineFollowRate').textContent = m.followRate === null ? '-' : Math.round(m.followRate * 100) + '%';
-  document.getElementById('disciplineFollowInfo').textContent = m.followRate === null ? 'No checklist data yet' : 'Trades marked as followed_rules';
+  document.getElementById('disciplineFollowInfo').textContent = m.followRate === null ? 'No followedRules data yet' : m.components.followedCount + ' of ' + m.components.followedDataCount + ' scored trades followed the plan';
 
   document.getElementById('disciplineTopMistake').textContent = m.topMistake || '-';
   document.getElementById('disciplineTopMistakeInfo').textContent = m.topMistake ? (m.topMistakeCount + ' trade' + (m.topMistakeCount === 1 ? '' : 's')) : 'No mistake tags yet';
